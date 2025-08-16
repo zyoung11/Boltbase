@@ -155,6 +155,7 @@ func PutSeq(db *bbolt.DB, bucket, value string) error {
 		if b == nil {
 			return ErrBucketNotFound
 		}
+		b.FillPercent = 0.95
 		id, err := b.NextSequence()
 		if err != nil {
 			return err
@@ -176,6 +177,7 @@ func PutTime(db *bbolt.DB, bucket, value string) error {
 		if b == nil {
 			return ErrBucketNotFound
 		}
+		b.FillPercent = 0.95
 		key := []byte(time.Now().UTC().Format(time.RFC3339))
 		return b.Put(key, []byte(value))
 	})
