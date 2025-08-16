@@ -208,6 +208,32 @@ func GetKV(db *bbolt.DB, bucket, key string) (string, error) {
 	return val, err
 }
 
+func GetKVSeq(db *bbolt.DB, bucket string, key uint64) (string, error) {
+	// if err := validStr(bucket); err != nil {
+	// 	return "", err
+	// }
+	// if err := validStr(key); err != nil {
+	// 	return "", err
+	// }
+	var val string
+	k := make([]byte, 8)
+	binary.BigEndian.PutUint64(k, key)
+
+	err := db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return ErrBucketNotFound
+		}
+		v := b.Get([]byte(k))
+		if v == nil {
+			return ErrKeyNotFound
+		}
+		val = string(v)
+		return nil
+	})
+	return val, err
+}
+
 // ---------------- 10. Prefix Scan ----------------
 
 func PrefixScan(db *bbolt.DB, bucket, prefix string) (map[string]string, error) {
@@ -225,6 +251,32 @@ func PrefixScan(db *bbolt.DB, bucket, prefix string) (map[string]string, error) 
 		}
 		c := b.Cursor()
 		p := []byte(prefix)
+		for k, v := c.Seek(p); k != nil && bytes.HasPrefix(k, p); k, v = c.Next() {
+			out[string(k)] = string(v)
+		}
+		return nil
+	})
+	return out, err
+}
+
+func PrefixScanSeq(db *bbolt.DB, bucket string, prefix uint64) (map[string]string, error) {
+	// if err := validStr(bucket); err != nil {
+	// 	return nil, err
+	// }
+	// if err := validStr(prefix); err != nil {
+	// 	return nil, err
+	// }
+	p := make([]byte, 8)
+	binary.BigEndian.PutUint64(p, prefix)
+
+	out := make(map[string]string)
+	err := db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return ErrBucketNotFound
+		}
+		c := b.Cursor()
+		p := []byte(p)
 		for k, v := c.Seek(p); k != nil && bytes.HasPrefix(k, p); k, v = c.Next() {
 			out[string(k)] = string(v)
 		}
