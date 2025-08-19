@@ -25,6 +25,53 @@ const (
 	//layoutNano  = "2006-01-02T15:04:05.000000000Z07:00" // 29 字节
 )
 
+func uint32ToPadded10BE(b []byte) string {
+	v := uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+
+	hi := v / 100_000_000
+	lo := v - hi*100_000_000
+
+	lo64 := uint64(lo)
+
+	const inv10 = 0xCCCCCCCD
+	const shift = 35
+
+	q0 := (lo64 * inv10) >> shift
+	d9 := lo64 - q0*10
+	q1 := (q0 * inv10) >> shift
+	d8 := q0 - q1*10
+	q2 := (q1 * inv10) >> shift
+	d7 := q1 - q2*10
+	q3 := (q2 * inv10) >> shift
+	d6 := q2 - q3*10
+	q4 := (q3 * inv10) >> shift
+	d5 := q3 - q4*10
+	q5 := (q4 * inv10) >> shift
+	d4 := q4 - q5*10
+	q6 := (q5 * inv10) >> shift
+	d3 := q5 - q6*10
+	q7 := (q6 * inv10) >> shift
+	d2 := q6 - q7*10
+
+	hi10 := (uint64(hi) * inv10) >> shift
+	d1 := uint64(hi) - hi10*10
+	d0 := hi10
+
+	var buf [10]byte
+	buf[0] = byte(d0) + '0'
+	buf[1] = byte(d1) + '0'
+	buf[2] = byte(d2) + '0'
+	buf[3] = byte(d3) + '0'
+	buf[4] = byte(d4) + '0'
+	buf[5] = byte(d5) + '0'
+	buf[6] = byte(d6) + '0'
+	buf[7] = byte(d7) + '0'
+	buf[8] = byte(d8) + '0'
+	buf[9] = byte(d9) + '0'
+
+	return string(buf[:])
+}
+
 // func validStr(s string) error {
 // 	for i := 0; i < len(s); i++ {
 // 		if s[i] > 0x7F {
@@ -267,7 +314,7 @@ func PrefixScan(db *bolt.DB, bucket, prefix string) (map[string]string, error) {
 	return out, err
 }
 
-func PrefixScanSeq(db *bolt.DB, bucket string, prefix uint32) (map[uint32]string, error) {
+func PrefixScanSeq(db *bolt.DB, bucket string, prefix uint32) (map[string]string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return nil, err
 	// }
@@ -277,7 +324,7 @@ func PrefixScanSeq(db *bolt.DB, bucket string, prefix uint32) (map[uint32]string
 	p := make([]byte, 4)
 	binary.BigEndian.PutUint32(p, prefix)
 
-	out := make(map[uint32]string)
+	out := make(map[string]string)
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
@@ -286,7 +333,7 @@ func PrefixScanSeq(db *bolt.DB, bucket string, prefix uint32) (map[uint32]string
 		c := b.Cursor()
 		p := []byte(p)
 		for k, v := c.Seek(p); k != nil && bytes.HasPrefix(k, p); k, v = c.Next() {
-			out[binary.BigEndian.Uint32(k)] = string(v)
+			out[uint32ToPadded10BE(k)] = string(v)
 		}
 		return nil
 	})
@@ -321,11 +368,11 @@ func RangeScan(db *bolt.DB, bucket, start, end string) (map[string]string, error
 	return out, err
 }
 
-func RangeScanSeq(db *bolt.DB, bucket string, start, end uint32) (map[uint32]string, error) {
+func RangeScanSeq(db *bolt.DB, bucket string, start, end uint32) (map[string]string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return nil, err
 	// }
-	out := make(map[uint32]string)
+	out := make(map[string]string)
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
@@ -336,7 +383,7 @@ func RangeScanSeq(db *bolt.DB, bucket string, start, end uint32) (map[uint32]str
 		binary.BigEndian.PutUint32(e, end)
 		c := b.Cursor()
 		for k, v := c.Seek(s); k != nil && bytes.Compare(k, e) <= 0; k, v = c.Next() {
-			out[binary.BigEndian.Uint32(k)] = string(v)
+			out[uint32ToPadded10BE(k)] = string(v)
 		}
 		return nil
 	})
@@ -363,18 +410,18 @@ func ScanAll(db *bolt.DB, bucket string) (map[string]string, error) {
 	return out, err
 }
 
-func ScanAllSeq(db *bolt.DB, bucket string) (map[uint32]string, error) {
+func ScanAllSeq(db *bolt.DB, bucket string) (map[string]string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return nil, err
 	// }
-	out := make(map[uint32]string)
+	out := make(map[string]string)
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
 		}
 		return b.ForEach(func(k, v []byte) error {
-			out[binary.BigEndian.Uint32(k)] = string(v)
+			out[uint32ToPadded10BE(k)] = string(v)
 			return nil
 		})
 	})
