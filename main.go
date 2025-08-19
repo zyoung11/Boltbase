@@ -4,12 +4,14 @@ import (
 	"Boltbase/bolt"
 	"Boltbase/web"
 	"encoding/base64"
-	"encoding/binary"
+
+	//"encoding/binary"
 	"errors"
-	"fmt"
+	//"fmt"
 	"log"
 	"net/url"
-	"strconv"
+
+	//"strconv"
 	"time"
 
 	bbolt "github.com/boltdb/bolt"
@@ -50,29 +52,6 @@ func initDB() error {
 		log.Fatalf("Failed to create metadata bucket in initialization\n%v", err)
 	}
 	return nil
-}
-
-func decodeUint(kv map[string]string) map[string]string {
-	maxN := uint64(0)
-	for k := range kv {
-		if len(k) == 8 {
-			n := binary.BigEndian.Uint64([]byte(k))
-			if n > maxN {
-				maxN = n
-			}
-		}
-	}
-	width := len(strconv.FormatUint(maxN, 10))
-	decoded := make(map[string]string, len(kv))
-	for k, v := range kv {
-		if len(k) != 8 {
-			continue
-		}
-		n := binary.BigEndian.Uint64([]byte(k))
-		newKey := fmt.Sprintf("%0*d", width, n)
-		decoded[newKey] = v
-	}
-	return decoded
 }
 
 func createBucket(c *fiber.Ctx) error {
@@ -409,7 +388,7 @@ func getKV(c *fiber.Ctx) error {
 				"error": err.Error(),
 			})
 		}
-		value, err := bolt.GetKVSeq(db, bucketName, uint64(key))
+		value, err := bolt.GetKVSeq(db, bucketName, uint32(key))
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
@@ -470,14 +449,12 @@ func prefixScan(c *fiber.Ctx) error {
 				"error": err.Error(),
 			})
 		}
-		kv, err := bolt.PrefixScanSeq(db, bucketName, uint64(prefix))
+		kv, err := bolt.PrefixScanSeq(db, bucketName, uint32(prefix))
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
 			})
 		}
-
-		kv = decodeUint(kv)
 
 		return c.Status(200).JSON(fiber.Map{
 			"total": len(kv),
@@ -543,13 +520,13 @@ func rangeScan(c *fiber.Ctx) error {
 				"error": err.Error(),
 			})
 		}
-		kv, err := bolt.RangeScanSeq(db, bucketName, uint64(start), uint64(end))
+		kv, err := bolt.RangeScanSeq(db, bucketName, uint32(start), uint32(end))
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
 			})
 		}
-		kv = decodeUint(kv)
+
 		return c.Status(200).JSON(fiber.Map{
 			"total": len(kv),
 			"kv":    kv,
@@ -593,13 +570,6 @@ func scanAll(c *fiber.Ctx) error {
 		}
 	}
 
-	kv, err := bolt.ScanAll(db, bucketName)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-
 	keyType, err := bolt.GetKV(db, metadataBucket, bucketName)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
@@ -608,7 +578,23 @@ func scanAll(c *fiber.Ctx) error {
 	}
 
 	if keyType == "seq" {
-		kv = decodeUint(kv)
+		kv, err := bolt.ScanAllSeq(db, bucketName)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		return c.Status(200).JSON(fiber.Map{
+			"total": len(kv),
+			"kv":    kv,
+		})
+	}
+
+	kv, err := bolt.ScanAll(db, bucketName)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
 
 	return c.Status(200).JSON(fiber.Map{

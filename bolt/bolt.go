@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+
+	// "fmt"
 	"net/url"
 	"os"
 	"time"
@@ -16,6 +18,12 @@ import (
 
 var ErrKeyNotFound = errors.New("key not found")
 var ErrBucketNotFound = errors.New("bucket not found")
+
+const (
+	//layoutMilli = "2006-01-02T15:04:05.000Z07:00"       // 23 字节
+	layoutMicro = "2006-01-02T15:04:05.000000Z07:00" // 26 字节
+	//layoutNano  = "2006-01-02T15:04:05.000000000Z07:00" // 29 字节
+)
 
 // func validStr(s string) error {
 // 	for i := 0; i < len(s); i++ {
@@ -160,8 +168,8 @@ func PutSeq(db *bolt.DB, bucket, value string) error {
 		if err != nil {
 			return err
 		}
-		key := make([]byte, 8)
-		binary.BigEndian.PutUint64(key, id)
+		key := make([]byte, 4)
+		binary.BigEndian.PutUint32(key, uint32(id))
 		return b.Put(key, []byte(value))
 	})
 }
@@ -178,7 +186,7 @@ func PutTime(db *bolt.DB, bucket, value string) error {
 			return ErrBucketNotFound
 		}
 		b.FillPercent = 0.95
-		key := []byte(time.Now().UTC().Format(time.RFC3339))
+		key := []byte(time.Now().UTC().Format(layoutMicro))
 		return b.Put(key, []byte(value))
 	})
 }
@@ -208,7 +216,7 @@ func GetKV(db *bolt.DB, bucket, key string) (string, error) {
 	return val, err
 }
 
-func GetKVSeq(db *bolt.DB, bucket string, key uint64) (string, error) {
+func GetKVSeq(db *bolt.DB, bucket string, key uint32) (string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return "", err
 	// }
@@ -216,8 +224,8 @@ func GetKVSeq(db *bolt.DB, bucket string, key uint64) (string, error) {
 	// 	return "", err
 	// }
 	var val string
-	k := make([]byte, 8)
-	binary.BigEndian.PutUint64(k, key)
+	k := make([]byte, 4)
+	binary.BigEndian.PutUint32(k, key)
 
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
@@ -259,17 +267,17 @@ func PrefixScan(db *bolt.DB, bucket, prefix string) (map[string]string, error) {
 	return out, err
 }
 
-func PrefixScanSeq(db *bolt.DB, bucket string, prefix uint64) (map[string]string, error) {
+func PrefixScanSeq(db *bolt.DB, bucket string, prefix uint32) (map[uint32]string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return nil, err
 	// }
 	// if err := validStr(prefix); err != nil {
 	// 	return nil, err
 	// }
-	p := make([]byte, 8)
-	binary.BigEndian.PutUint64(p, prefix)
+	p := make([]byte, 4)
+	binary.BigEndian.PutUint32(p, prefix)
 
-	out := make(map[string]string)
+	out := make(map[uint32]string)
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
@@ -278,7 +286,7 @@ func PrefixScanSeq(db *bolt.DB, bucket string, prefix uint64) (map[string]string
 		c := b.Cursor()
 		p := []byte(p)
 		for k, v := c.Seek(p); k != nil && bytes.HasPrefix(k, p); k, v = c.Next() {
-			out[string(k)] = string(v)
+			out[binary.BigEndian.Uint32(k)] = string(v)
 		}
 		return nil
 	})
@@ -313,22 +321,22 @@ func RangeScan(db *bolt.DB, bucket, start, end string) (map[string]string, error
 	return out, err
 }
 
-func RangeScanSeq(db *bolt.DB, bucket string, start, end uint64) (map[string]string, error) {
+func RangeScanSeq(db *bolt.DB, bucket string, start, end uint32) (map[uint32]string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return nil, err
 	// }
-	out := make(map[string]string)
+	out := make(map[uint32]string)
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
 		}
-		s, e := make([]byte, 8), make([]byte, 8)
-		binary.BigEndian.PutUint64(s, start)
-		binary.BigEndian.PutUint64(e, end)
+		s, e := make([]byte, 4), make([]byte, 4)
+		binary.BigEndian.PutUint32(s, start)
+		binary.BigEndian.PutUint32(e, end)
 		c := b.Cursor()
 		for k, v := c.Seek(s); k != nil && bytes.Compare(k, e) <= 0; k, v = c.Next() {
-			out[string(k)] = string(v)
+			out[binary.BigEndian.Uint32(k)] = string(v)
 		}
 		return nil
 	})
@@ -349,6 +357,24 @@ func ScanAll(db *bolt.DB, bucket string) (map[string]string, error) {
 		}
 		return b.ForEach(func(k, v []byte) error {
 			out[string(k)] = string(v)
+			return nil
+		})
+	})
+	return out, err
+}
+
+func ScanAllSeq(db *bolt.DB, bucket string) (map[uint32]string, error) {
+	// if err := validStr(bucket); err != nil {
+	// 	return nil, err
+	// }
+	out := make(map[uint32]string)
+	err := db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return ErrBucketNotFound
+		}
+		return b.ForEach(func(k, v []byte) error {
+			out[binary.BigEndian.Uint32(k)] = string(v)
 			return nil
 		})
 	})
