@@ -12,19 +12,19 @@ import (
 	"strconv"
 	"time"
 
+	bbolt "github.com/boltdb/bolt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	str2duration "github.com/xhit/go-str2duration/v2"
-	"go.etcd.io/bbolt"
 )
 
 var (
-	db             *bbolt.DB
-	adminBucket    string = "BoltbaseAdminBucketforUsernameAndPassword"
-	metadataBucket string = "BoltbaseMetaDataForBucketsKeyType"
-	apiKeyBucket   string = "BoltbaseApiKeyBucket"
-	Unauthorized          = errors.New("Unauthorized")
-	apiKeyExpire          = errors.New("Api key expired")
+	db                 *bbolt.DB
+	adminBucket        string = "BoltbaseAdminBucketforUsernameAndPassword"
+	metadataBucket     string = "BoltbaseMetaDataForBucketsKeyType"
+	apiKeyBucket       string = "BoltbaseApiKeyBucket"
+	ErrFooUnauthorized        = errors.New("unauthorized")
+	errFooapiKeyExpire        = errors.New("api key expired")
 )
 
 type AuthResult struct {
@@ -85,12 +85,12 @@ func createBucket(c *fiber.Ctx) error {
 	}
 
 	_, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.SendStatus(401)
 	}
 
@@ -125,12 +125,12 @@ func createBucket(c *fiber.Ctx) error {
 
 func listBuckets(c *fiber.Ctx) error {
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.SendStatus(401)
 	}
 
@@ -158,12 +158,12 @@ func listBuckets(c *fiber.Ctx) error {
 
 func listBucketsType(c *fiber.Ctx) error {
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.SendStatus(401)
 	}
 
@@ -202,12 +202,12 @@ func renameBucket(c *fiber.Ctx) error {
 	}
 
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.SendStatus(401)
 	}
 	if !auth.IsAdmin {
@@ -235,12 +235,12 @@ func dropBucket(c *fiber.Ctx) error {
 	}
 
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.SendStatus(401)
 	}
 	if !auth.IsAdmin {
@@ -286,12 +286,12 @@ func putKV(c *fiber.Ctx) error {
 	}
 
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.SendStatus(401)
 	}
 	if !auth.IsAdmin {
@@ -309,7 +309,7 @@ func putKV(c *fiber.Ctx) error {
 		})
 	}
 
-	if keyType == "string" && data.Update == true {
+	if keyType == "string" && data.Update {
 		if err := bolt.PutKV(db, data.Bucket, data.Key, data.Value); err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
@@ -319,7 +319,7 @@ func putKV(c *fiber.Ctx) error {
 		}
 	}
 
-	if keyType == "string" && data.Update == false {
+	if keyType == "string" && !data.Update {
 		_, err := bolt.GetKV(db, data.Bucket, data.Key)
 		if errors.Is(err, bolt.ErrKeyNotFound) {
 			if err := bolt.PutKV(db, data.Bucket, data.Key, data.Value); err != nil {
@@ -379,12 +379,12 @@ func getKV(c *fiber.Ctx) error {
 	}
 
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.SendStatus(401)
 	}
 	if !auth.IsAdmin {
@@ -440,12 +440,12 @@ func prefixScan(c *fiber.Ctx) error {
 	}
 
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.SendStatus(401)
 	}
 	if !auth.IsAdmin {
@@ -507,12 +507,12 @@ func rangeScan(c *fiber.Ctx) error {
 	}
 
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.SendStatus(401)
 	}
 	if !auth.IsAdmin {
@@ -577,12 +577,12 @@ func scanAll(c *fiber.Ctx) error {
 	}
 
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.SendStatus(401)
 	}
 	if !auth.IsAdmin {
@@ -626,12 +626,12 @@ func countBucketKV(c *fiber.Ctx) error {
 	}
 
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.Status(401).Send(nil)
 	}
 	if !auth.IsAdmin {
@@ -662,12 +662,12 @@ func deleteKV(c *fiber.Ctx) error {
 	}
 
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.Status(401).Send(nil)
 	}
 	if !auth.IsAdmin {
@@ -688,12 +688,12 @@ func deleteKV(c *fiber.Ctx) error {
 
 func exportDB(c *fiber.Ctx) error {
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.Status(401).Send(nil)
 	}
 	if !auth.IsAdmin {
@@ -715,7 +715,7 @@ func auth(authToken string) (AuthResult, error) {
 	// bool = is authed
 	// bool = have adminBucket
 	// bool = have apiKeyBucket
-	// error = Authorized || Unauthorized || err
+	// error = Authorized || ErrFooUnauthorized || err
 	//
 	var (
 		haveAdminBucket  bool
@@ -752,7 +752,7 @@ func auth(authToken string) (AuthResult, error) {
 
 	if !haveApiKeyBucket {
 		// fmt.Println("debug-auth: 6")
-		return AuthResult{false, false, haveAdminBucket, haveApiKeyBucket}, Unauthorized
+		return AuthResult{false, false, haveAdminBucket, haveApiKeyBucket}, ErrFooUnauthorized
 	}
 
 	expiryDate, err := bolt.GetKV(db, apiKeyBucket, authToken)
@@ -763,7 +763,7 @@ func auth(authToken string) (AuthResult, error) {
 
 	if err == bolt.ErrKeyNotFound {
 		// fmt.Println("debug-auth: 8")
-		return AuthResult{false, false, haveAdminBucket, haveApiKeyBucket}, Unauthorized
+		return AuthResult{false, false, haveAdminBucket, haveApiKeyBucket}, ErrFooUnauthorized
 	}
 
 	parsed, err := time.Parse(time.RFC3339, expiryDate)
@@ -774,7 +774,7 @@ func auth(authToken string) (AuthResult, error) {
 
 	if parsed.Before(time.Now()) {
 		// fmt.Println("debug-auth: 10")
-		return AuthResult{false, false, haveAdminBucket, haveApiKeyBucket}, apiKeyExpire
+		return AuthResult{false, false, haveAdminBucket, haveApiKeyBucket}, errFooapiKeyExpire
 	}
 
 	// fmt.Println("debug-auth: 11")
@@ -783,12 +783,12 @@ func auth(authToken string) (AuthResult, error) {
 
 func createPassword(c *fiber.Ctx) error {
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.Status(401).Send(nil)
 	}
 	if !auth.IsAdmin {
@@ -829,7 +829,7 @@ func createPassword(c *fiber.Ctx) error {
 
 func deletePassword(c *fiber.Ctx) error {
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -839,7 +839,7 @@ func deletePassword(c *fiber.Ctx) error {
 			"error": "Admin bucket not found",
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.SendStatus(401)
 	}
 	if !auth.IsAdmin {
@@ -862,12 +862,12 @@ func deletePassword(c *fiber.Ctx) error {
 
 func createApiKey(c *fiber.Ctx) error {
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.SendStatus(401)
 	}
 	if !auth.IsAdmin {
@@ -915,12 +915,12 @@ func createApiKey(c *fiber.Ctx) error {
 
 func deleteExpiryApiKey(c *fiber.Ctx) error {
 	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != Unauthorized {
+	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err == Unauthorized {
+	if err == ErrFooUnauthorized {
 		return c.SendStatus(401)
 	}
 	if !auth.IsAdmin {

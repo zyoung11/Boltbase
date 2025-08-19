@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"go.etcd.io/bbolt"
+	bolt "github.com/boltdb/bolt"
 )
 
 // ---------------- Common Tools ----------------
@@ -28,11 +28,11 @@ var ErrBucketNotFound = errors.New("bucket not found")
 
 // ---------------- 1. Open/Create Database ----------------
 
-func OpenDB(path string) (*bbolt.DB, error) {
+func OpenDB(path string) (*bolt.DB, error) {
 	// if err := validStr(path); err != nil {
 	// 	return nil, err
 	// }
-	db, err := bbolt.Open(path, 0600, &bbolt.Options{Timeout: 1 * time.Second})
+	db, err := bolt.Open(path, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		return nil, err
 	}
@@ -41,11 +41,11 @@ func OpenDB(path string) (*bbolt.DB, error) {
 
 // ---------------- 2. Create Bucket ----------------
 
-func CreateBucket(db *bbolt.DB, name string) error {
+func CreateBucket(db *bolt.DB, name string) error {
 	// if err := validStr(name); err != nil {
 	// 	return err
 	// }
-	return db.Update(func(tx *bbolt.Tx) error {
+	return db.Update(func(tx *bolt.Tx) error {
 		if tx.Bucket([]byte(name)) != nil {
 			return errors.New("bucket already exists")
 		}
@@ -56,10 +56,10 @@ func CreateBucket(db *bbolt.DB, name string) error {
 
 // ---------------- 3. List Buckets -----------------
 
-func ListBuckets(db *bbolt.DB) ([]string, error) {
+func ListBuckets(db *bolt.DB) ([]string, error) {
 	var buckets []string
-	err := db.View(func(tx *bbolt.Tx) error {
-		return tx.ForEach(func(name []byte, b *bbolt.Bucket) error {
+	err := db.View(func(tx *bolt.Tx) error {
+		return tx.ForEach(func(name []byte, b *bolt.Bucket) error {
 			decodedName, err := decodeURIComponent(string(name))
 			if err != nil {
 				return errors.New("failed to decode bucket name")
@@ -81,14 +81,14 @@ func decodeURIComponent(s string) (string, error) {
 
 // --------------- 4. Rename Bucket ---------------
 
-func RenameBucket(db *bbolt.DB, oldName, newName string) error {
+func RenameBucket(db *bolt.DB, oldName, newName string) error {
 	// if err := validStr(oldName); err != nil {
 	// 	return err
 	// }
 	// if err := validStr(newName); err != nil {
 	// 	return err
 	// }
-	return db.Update(func(tx *bbolt.Tx) error {
+	return db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(oldName))
 		if b == nil {
 			return ErrBucketNotFound
@@ -114,11 +114,11 @@ func RenameBucket(db *bbolt.DB, oldName, newName string) error {
 
 // ---------------- 5. Drop Bucket ----------------
 
-func DropBucket(db *bbolt.DB, name string) error {
+func DropBucket(db *bolt.DB, name string) error {
 	// if err := validStr(name); err != nil {
 	// 	return err
 	// }
-	return db.Update(func(tx *bbolt.Tx) error {
+	return db.Update(func(tx *bolt.Tx) error {
 		if tx.Bucket([]byte(name)) == nil {
 			return ErrBucketNotFound
 		}
@@ -128,14 +128,14 @@ func DropBucket(db *bbolt.DB, name string) error {
 
 // ---------------- 6. Manual Insert/Update ----------------
 
-func PutKV(db *bbolt.DB, bucket, key, value string) error {
+func PutKV(db *bolt.DB, bucket, key, value string) error {
 	// if err := validStr(bucket); err != nil {
 	// 	return err
 	// }
 	// if err := validStr(key); err != nil {
 	// 	return err
 	// }
-	return db.Update(func(tx *bbolt.Tx) error {
+	return db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
@@ -146,11 +146,11 @@ func PutKV(db *bbolt.DB, bucket, key, value string) error {
 
 // ---------------- 7. Sequential Auto-Increment Insert ----------------
 
-func PutSeq(db *bbolt.DB, bucket, value string) error {
+func PutSeq(db *bolt.DB, bucket, value string) error {
 	// if err := validStr(bucket); err != nil {
 	// 	return err
 	// }
-	return db.Update(func(tx *bbolt.Tx) error {
+	return db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
@@ -168,11 +168,11 @@ func PutSeq(db *bbolt.DB, bucket, value string) error {
 
 // ---------------- 8. Time Auto-Increment Insert ----------------
 
-func PutTime(db *bbolt.DB, bucket, value string) error {
+func PutTime(db *bolt.DB, bucket, value string) error {
 	// if err := validStr(bucket); err != nil {
 	// 	return err
 	// }
-	return db.Update(func(tx *bbolt.Tx) error {
+	return db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
@@ -185,7 +185,7 @@ func PutTime(db *bbolt.DB, bucket, value string) error {
 
 // ---------------- 9. Get Value ----------------
 
-func GetKV(db *bbolt.DB, bucket, key string) (string, error) {
+func GetKV(db *bolt.DB, bucket, key string) (string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return "", err
 	// }
@@ -193,7 +193,7 @@ func GetKV(db *bbolt.DB, bucket, key string) (string, error) {
 	// 	return "", err
 	// }
 	var val string
-	err := db.View(func(tx *bbolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
@@ -208,7 +208,7 @@ func GetKV(db *bbolt.DB, bucket, key string) (string, error) {
 	return val, err
 }
 
-func GetKVSeq(db *bbolt.DB, bucket string, key uint64) (string, error) {
+func GetKVSeq(db *bolt.DB, bucket string, key uint64) (string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return "", err
 	// }
@@ -219,7 +219,7 @@ func GetKVSeq(db *bbolt.DB, bucket string, key uint64) (string, error) {
 	k := make([]byte, 8)
 	binary.BigEndian.PutUint64(k, key)
 
-	err := db.View(func(tx *bbolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
@@ -236,7 +236,7 @@ func GetKVSeq(db *bbolt.DB, bucket string, key uint64) (string, error) {
 
 // ---------------- 10. Prefix Scan ----------------
 
-func PrefixScan(db *bbolt.DB, bucket, prefix string) (map[string]string, error) {
+func PrefixScan(db *bolt.DB, bucket, prefix string) (map[string]string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return nil, err
 	// }
@@ -244,7 +244,7 @@ func PrefixScan(db *bbolt.DB, bucket, prefix string) (map[string]string, error) 
 	// 	return nil, err
 	// }
 	out := make(map[string]string)
-	err := db.View(func(tx *bbolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
@@ -259,7 +259,7 @@ func PrefixScan(db *bbolt.DB, bucket, prefix string) (map[string]string, error) 
 	return out, err
 }
 
-func PrefixScanSeq(db *bbolt.DB, bucket string, prefix uint64) (map[string]string, error) {
+func PrefixScanSeq(db *bolt.DB, bucket string, prefix uint64) (map[string]string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return nil, err
 	// }
@@ -270,7 +270,7 @@ func PrefixScanSeq(db *bbolt.DB, bucket string, prefix uint64) (map[string]strin
 	binary.BigEndian.PutUint64(p, prefix)
 
 	out := make(map[string]string)
-	err := db.View(func(tx *bbolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
@@ -287,7 +287,7 @@ func PrefixScanSeq(db *bbolt.DB, bucket string, prefix uint64) (map[string]strin
 
 // ---------------- 11. Range Scan ----------------
 
-func RangeScan(db *bbolt.DB, bucket, start, end string) (map[string]string, error) {
+func RangeScan(db *bolt.DB, bucket, start, end string) (map[string]string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return nil, err
 	// }
@@ -298,7 +298,7 @@ func RangeScan(db *bbolt.DB, bucket, start, end string) (map[string]string, erro
 	// 	return nil, err
 	// }
 	out := make(map[string]string)
-	err := db.View(func(tx *bbolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
@@ -313,12 +313,12 @@ func RangeScan(db *bbolt.DB, bucket, start, end string) (map[string]string, erro
 	return out, err
 }
 
-func RangeScanSeq(db *bbolt.DB, bucket string, start, end uint64) (map[string]string, error) {
+func RangeScanSeq(db *bolt.DB, bucket string, start, end uint64) (map[string]string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return nil, err
 	// }
 	out := make(map[string]string)
-	err := db.View(func(tx *bbolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
@@ -337,12 +337,12 @@ func RangeScanSeq(db *bbolt.DB, bucket string, start, end uint64) (map[string]st
 
 // ---------------- 12. Scan All ----------------
 
-func ScanAll(db *bbolt.DB, bucket string) (map[string]string, error) {
+func ScanAll(db *bolt.DB, bucket string) (map[string]string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return nil, err
 	// }
 	out := make(map[string]string)
-	err := db.View(func(tx *bbolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
@@ -357,12 +357,12 @@ func ScanAll(db *bbolt.DB, bucket string) (map[string]string, error) {
 
 // ------------- 13. Count Key-Value Pairs in Bucket -------------
 
-func CountBucketKV(db *bbolt.DB, bucket string) (int, error) {
+func CountBucketKV(db *bolt.DB, bucket string) (int, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return 0, err
 	// }
 	var count int
-	err := db.View(func(tx *bbolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
@@ -375,14 +375,14 @@ func CountBucketKV(db *bbolt.DB, bucket string) (int, error) {
 
 // ---------------- 14. Delete Key-Value Pair ----------------
 
-func DeleteKV(db *bbolt.DB, bucket, key string) error {
+func DeleteKV(db *bolt.DB, bucket, key string) error {
 	// if err := validStr(bucket); err != nil {
 	// 	return err
 	// }
 	// if err := validStr(key); err != nil {
 	// 	return err
 	// }
-	return db.Update(func(tx *bbolt.Tx) error {
+	return db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
@@ -396,13 +396,13 @@ func DeleteKV(db *bbolt.DB, bucket, key string) error {
 
 // ---------------- 15. Export Database ----------------
 
-func ExportDB(db *bbolt.DB, filePath string) error {
+func ExportDB(db *bolt.DB, filePath string) error {
 	// if err := validStr(filePath); err != nil {
 	// 	return err
 	// }
 	all := make(map[string]map[string]string)
-	err := db.View(func(tx *bbolt.Tx) error {
-		return tx.ForEach(func(name []byte, b *bbolt.Bucket) error {
+	err := db.View(func(tx *bolt.Tx) error {
+		return tx.ForEach(func(name []byte, b *bolt.Bucket) error {
 			m := make(map[string]string)
 			err := b.ForEach(func(k, v []byte) error {
 				m[string(k)] = string(v)
@@ -427,11 +427,11 @@ func ExportDB(db *bbolt.DB, filePath string) error {
 
 // ---------------- 156. Check Bucket ----------------
 
-func CheckBucket(db *bbolt.DB, bucket string) (bool, error) {
+func CheckBucket(db *bolt.DB, bucket string) (bool, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return false, err
 	// }
-	err := db.View(func(tx *bbolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
