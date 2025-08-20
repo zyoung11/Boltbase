@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -14,5 +16,20 @@ func indexGreet(c *fiber.Ctx) error {
 	name := c.FormValue("name")
 	return c.Render("HTMX/greet", fiber.Map{
 		"Name": name,
+	})
+}
+
+func add(c *fiber.Ctx) error {
+	name := c.FormValue("name")
+	age, err := strconv.Atoi(c.FormValue("age"))
+	if err != nil {
+		return c.Status(500).Render("HTMX/add", fiber.Map{
+			"error": err.Error(),
+		})
+		// return c.SendStatus(500)
+	}
+	return c.Render("HTMX/add", fiber.Map{
+		"Name": name,
+		"Age":  age,
 	})
 }

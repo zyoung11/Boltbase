@@ -126,8 +126,8 @@ func main() {
 		{Method: "DELETE", Path: "/auth/apikey", Handler: deleteExpiryApiKey},
 
 		// web
-		{Method: "GET", Path: "/web", Handler: index},
-		{Method: "POST", Path: "/web/greet", Handler: indexGreet},
-	
+		{Method: "GET", Path: "/", Handler: index},
+		{Method: "POST", Path: "/greet", Handler: indexGreet},
+		{Method: "POST", Path: "/add", Handler: add},
 	})
 }
