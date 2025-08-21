@@ -23,10 +23,7 @@ func add(c *fiber.Ctx) error {
 	name := c.FormValue("name")
 	age, err := strconv.Atoi(c.FormValue("age"))
 	if err != nil {
-		return c.Status(500).Render("HTMX/add", fiber.Map{
-			"error": err.Error(),
-		})
-		// return c.SendStatus(500)
+		return c.SendStatus(500)
 	}
 	return c.Render("HTMX/add", fiber.Map{
 		"Name": name,
