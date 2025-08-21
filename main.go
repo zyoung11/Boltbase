@@ -31,7 +31,11 @@ type Route struct {
 
 func NewApp(name string, routes []Route) *fiber.App {
 
-	viewSub, _ := fs.Sub(webFS, "web/views")
+	viewSub, err := fs.Sub(webFS, "web/views")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	engine := html.NewFileSystem(http.FS(viewSub), ".html")
 
 	app := fiber.New(fiber.Config{
@@ -56,7 +60,11 @@ func NewApp(name string, routes []Route) *fiber.App {
 		app.Add(strings.ToUpper(r.Method), r.Path, r.Handler)
 	}
 
-	staticSub, _ := fs.Sub(webFS, "web/public")
+	staticSub, err := fs.Sub(webFS, "web/public")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	app.Use("/public", filesystem.New(filesystem.Config{
 		Root: http.FS(staticSub),
 	}))
@@ -127,6 +135,7 @@ func main() {
 
 		// web
 		{Method: "GET", Path: "/", Handler: index},
+		{Method: "GET", Path: "/favicon.ico", Handler: favicon},
 		{Method: "POST", Path: "/greet", Handler: indexGreet},
 		{Method: "POST", Path: "/add", Handler: add},
 	})

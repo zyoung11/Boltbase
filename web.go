@@ -1,15 +1,24 @@
 package main
 
 import (
+	"net/http"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
 )
 
 func index(c *fiber.Ctx) error {
 	return c.Render("index", fiber.Map{
 		"Title": "HTMX + Go (Fiber) Demos",
 	})
+}
+
+func favicon(c *fiber.Ctx) error {
+	if err := filesystem.SendFile(c, http.FS(webFS), "web/public/favicon.ico"); err != nil {
+		return c.Status(404).SendString(err.Error())
+	}
+	return nil
 }
 
 func indexGreet(c *fiber.Ctx) error {
