@@ -42,12 +42,33 @@ func add(c *fiber.Ctx) error {
 }
 
 func getBuckets(c *fiber.Ctx) error {
+	auth, err := auth(c.Get("Authorization"))
+	if err != nil && err != ErrFooUnauthorized {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	if err == ErrFooUnauthorized {
+		return c.SendStatus(401)
+	}
+
 	bucketList, err := bolt.ListBuckets(db)
 	if err != nil {
-		return c.SendStatus(500)
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
-	return c.Status(200).Render("HTMX/getBucket", fiber.Map{
-		"BucketName": bucketList,
-	})
 
+	filtered := bucketList[:0]
+	for _, v := range bucketList {
+		if v == metadataBucket || v == adminBucket || (auth.IsApiKey && v == apiKeyBucket) {
+			continue
+		}
+		filtered = append(filtered, v)
+	}
+	bucketList = filtered
+
+	return c.Status(200).Render("HTMX/getBucket", fiber.Map{
+		"BucketList": bucketList,
+	})
 }
