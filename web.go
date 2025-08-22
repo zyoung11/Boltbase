@@ -68,21 +68,7 @@ func getAll(c *fiber.Ctx) error {
 	}
 
 	return c.Status(200).Render("HTMX/getALL", fiber.Map{
-		"kv": kv,
-	})
-}
-
-func getCount(c *fiber.Ctx) error {
-	bucketName := c.FormValue("bucketName")
-	if bucketName == metadataBucket || bucketName == adminBucket {
-		return c.SendStatus(403)
-	}
-
-	total, err := bolt.CountBucketKV(db, bucketName)
-	if err != nil {
-		return c.SendStatus(500)
-	}
-	return c.Status(200).Render("HTMX/getCount", fiber.Map{
-		"Count": total,
+		"kv":    kv,
+		"Count": len(kv),
 	})
 }
