@@ -1,19 +1,13 @@
-<h2>Bucket 列表</h2>
+<h1>Bucket 列表演示</h1>
 <ul>
   {{range .BucketList}}
     <li>
-      <a href="#"
-         hx-get="/kv/all/{{.}}"
-         hx-target="#bucket-content"
-         hx-swap="innerHTML">
-        {{.}}
-      </a>
-      <span id="count-{{.}}"
-            hx-get="/kv/count/{{.}}"
-            hx-trigger="load once"
-            hx-swap="innerHTML"
-            hx-target="this">
-        </span>
+        <form hx-get="/web/getAll" hx-target="#bucket-content" hx-swap="innerHTML">
+            <input type="hidden" name="bucketName" value="{{.}}" />
+            <button type="submit" class="bucket-btn">
+                {{.}}
+            </button>
+        </form>
     </li>
   {{else}}
     <li>没有任何 bucket</li>

@@ -4,72 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Boltbase_Web</title>
+  <link rel="stylesheet" href="../public/styles.css">
   <script src="/public/htmx.min.js"></script>
 </head>
 <body>
-  <h1>Bucket 列表演示</h1>
+  <div class="container">
 
-  <!-- 加载所有 Buckets -->
-  <div id="buckets"
-       hx-get="/web/getBuckets"
-       hx-trigger="load"
-       hx-swap="innerHTML">
-    正在加载 Bucket 列表…
-  </div>
+    <div id="buckets"
+         hx-get="/web/getBuckets"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+      <em>正在加载 Bucket 列表…</em>
+    </div>
 
-  <!-- 点击某个 Bucket 后，这里显示内容 -->
-  <div id="bucket-content">
-    <em>点击 Bucket 查看内容</em>
+    <div id="bucket-content">
+      <em>点击 Bucket 查看内容</em>
+    </div>
   </div>
 </body>
 </html>
-
-
-<!-- <!doctype html>
-<html>
-
-<head>
-  <meta charset="utf-8">
-  <title>{{.Title}}</title>
-  <link rel="stylesheet" href="../public/app.css">
-  <script src="../public/htmx.min.js"></script>
-</head>
-
-<body>
-  <h1>{{.Title}}</h1>
-
-
-  <form hx-post="/greet" hx-target="#result" hx-swap="innerHTML">
-    <input type="text" name="name" placeholder="你的名字">
-    <button>打招呼</button>
-  </form>
-
-  <div id="result">等待输入…</div>
-
-  <h1>用户列表</h1>
-
-  <table>
-    <thead>
-      <tr>
-        <th>姓名</th>
-        <th>年龄</th>
-      </tr>
-    </thead>
-  </table>
-
-
-  <form hx-post="/add" hx-target="#rows" hx-swap="beforeend">
-    <input type="text" name="name" placeholder="姓名">
-    <input type="number" name="age" placeholder="年龄">
-    <button>添加</button>
-  </form>
-
-  <table>
-    <tbody id="rows">
-
-    </tbody>
-  </table>
-
-</body>
-
-</html> -->
