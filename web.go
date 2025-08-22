@@ -58,7 +58,8 @@ func getAll(c *fiber.Ctx) error {
 			return c.SendStatus(500)
 		}
 		return c.Status(200).Render("HTMX/getAll", fiber.Map{
-			"kv": kv,
+			"kv":    kv,
+			"Count": len(kv),
 		})
 	}
 
