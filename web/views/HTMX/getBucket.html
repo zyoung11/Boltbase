@@ -1,0 +1,21 @@
+<h2>Bucket 列表</h2>
+<ul>
+  {{range .BucketList}}
+    <li>
+      <a href="#"
+         hx-get="/kv/all/{{.}}"
+         hx-target="#bucket-content"
+         hx-swap="innerHTML">
+        {{.}}
+      </a>
+      <span id="count-{{.}}"
+            hx-get="/kv/count/{{.}}"
+            hx-trigger="load once"
+            hx-swap="innerHTML"
+            hx-target="this">
+        </span>
+    </li>
+  {{else}}
+    <li>没有任何 bucket</li>
+  {{end}}
+</ul>

@@ -1,0 +1,22 @@
+<h3>Bucket: {{.kv.BucketName}}</h3>
+
+<table border="1" cellpadding="6">
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range $k, $v := .kv.Data}}
+      <tr>
+        <td>{{$k}}</td>
+        <td>{{$v}}</td>
+      </tr>
+    {{else}}
+      <tr>
+        <td colspan="2">这个 bucket 里没有数据</td>
+      </tr>
+    {{end}}
+  </tbody>
+</table>

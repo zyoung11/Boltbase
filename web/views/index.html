@@ -4,13 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Boltbase_Web</title>
+  <script src="/public/htmx.min.js"></script>
 </head>
 <body>
-  
+  <h1>Bucket 列表演示</h1>
+
+  <!-- 加载所有 Buckets -->
+  <div id="buckets"
+       hx-get="/web/getBuckets"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    正在加载 Bucket 列表…
+  </div>
+
+  <!-- 点击某个 Bucket 后，这里显示内容 -->
+  <div id="bucket-content">
+    <em>点击 Bucket 查看内容</em>
+  </div>
 </body>
 </html>
-
-
 
 
 <!-- <!doctype html>
@@ -31,7 +43,6 @@
     <input type="text" name="name" placeholder="你的名字">
     <button>打招呼</button>
   </form>
-
 
   <div id="result">等待输入…</div>
 
