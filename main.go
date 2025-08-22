@@ -138,6 +138,5 @@ func main() {
 		{Method: "GET", Path: "/favicon.ico", Handler: favicon},
 		{Method: "GET", Path: "/web/getBuckets", Handler: getBuckets},
 		{Method: "GET", Path: "/web/getAll", Handler: getAll},
-		{Method: "GET", Path: "/web/getCount", Handler: getCount},
 	})
 }
