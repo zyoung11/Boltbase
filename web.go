@@ -1,6 +1,7 @@
 package main
 
 import (
+	"Boltbase/bolt"
 	"net/http"
 	"strconv"
 
@@ -38,4 +39,15 @@ func add(c *fiber.Ctx) error {
 		"Name": name,
 		"Age":  age,
 	})
+}
+
+func getBuckets(c *fiber.Ctx) error {
+	bucketList, err := bolt.ListBuckets(db)
+	if err != nil {
+		return c.SendStatus(500)
+	}
+	return c.Status(200).Render("HTMX/getBucket", fiber.Map{
+		"BucketName": bucketList,
+	})
+
 }
