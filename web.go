@@ -22,26 +22,14 @@ func favicon(c *fiber.Ctx) error {
 }
 
 func getBuckets(c *fiber.Ctx) error {
-	auth, err := auth(c.Get("Authorization"))
-	if err != nil && err != ErrFooUnauthorized {
-		return c.Status(500).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-	if err == ErrFooUnauthorized {
-		return c.SendStatus(401)
-	}
-
 	bucketList, err := bolt.ListBuckets(db)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return c.SendStatus(500)
 	}
 
 	filtered := bucketList[:0]
 	for _, v := range bucketList {
-		if v == metadataBucket || v == adminBucket || (auth.IsApiKey && v == apiKeyBucket) {
+		if v == metadataBucket || v == adminBucket {
 			continue
 		}
 		filtered = append(filtered, v)
@@ -50,5 +38,51 @@ func getBuckets(c *fiber.Ctx) error {
 
 	return c.Status(200).Render("HTMX/getBucket", fiber.Map{
 		"BucketList": bucketList,
+	})
+}
+
+func getAll(c *fiber.Ctx) error {
+	bucketName := c.FormValue("bucketName")
+	if bucketName == metadataBucket || bucketName == adminBucket {
+		return c.SendStatus(403)
+	}
+
+	keyType, err := bolt.GetKV(db, metadataBucket, bucketName)
+	if err != nil {
+		return c.SendStatus(500)
+	}
+
+	if keyType == "seq" {
+		kv, err := bolt.ScanAllSeq(db, bucketName)
+		if err != nil {
+			return c.SendStatus(500)
+		}
+		return c.Status(200).Render("HTMX/getALL", fiber.Map{
+			"kv": kv,
+		})
+	}
+
+	kv, err := bolt.ScanAll(db, bucketName)
+	if err != nil {
+		return c.SendStatus(500)
+	}
+
+	return c.Status(200).Render("HTMX/getALL", fiber.Map{
+		"kv": kv,
+	})
+}
+
+func getCount(c *fiber.Ctx) error {
+	bucketName := c.FormValue("bucketName")
+	if bucketName == metadataBucket || bucketName == adminBucket {
+		return c.SendStatus(403)
+	}
+
+	total, err := bolt.CountBucketKV(db, bucketName)
+	if err != nil {
+		return c.SendStatus(500)
+	}
+	return c.Status(200).Render("HTMX/getCount", fiber.Map{
+		"Count": total,
 	})
 }
