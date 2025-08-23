@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"bytes"
+	"embed"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,8 @@ import (
 
 	bolt "github.com/boltdb/bolt"
 )
+
+var WebFS embed.FS
 
 // ---------------- Common Tools ----------------
 
@@ -428,7 +431,40 @@ func ScanAllSeq(db *bolt.DB, bucket string) (map[string]string, error) {
 	return out, err
 }
 
-// ------------- 13. Count Key-Value Pairs in Bucket -------------
+// ---------------- 13. Part Scan ----------------
+
+func PartScan(db *bolt.DB, bucket string, start, step int) (map[string]string, error) {
+	if start < 0 || step <= 0 {
+		return nil, errors.New("start must be >=0 and step must be >0")
+	}
+
+	out := make(map[string]string)
+
+	err := db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return ErrBucketNotFound
+		}
+
+		c := b.Cursor()
+		// 跳到第 start 条
+		k, v := c.First()
+		for i := 0; i < start && k != nil; i++ {
+			k, v = c.Next()
+		}
+
+		// 顺序取 step 条
+		for i := 0; i < step && k != nil; i++ {
+			out[string(k)] = string(v)
+			k, v = c.Next()
+		}
+		return nil
+	})
+
+	return out, err
+}
+
+// ------------- 14. Count Key-Value Pairs in Bucket -------------
 
 func CountBucketKV(db *bolt.DB, bucket string) (int, error) {
 	// if err := validStr(bucket); err != nil {
@@ -446,7 +482,7 @@ func CountBucketKV(db *bolt.DB, bucket string) (int, error) {
 	return count, err
 }
 
-// ---------------- 14. Delete Key-Value Pair ----------------
+// ---------------- 15. Delete Key-Value Pair ----------------
 
 func DeleteKV(db *bolt.DB, bucket, key string) error {
 	// if err := validStr(bucket); err != nil {
@@ -467,7 +503,7 @@ func DeleteKV(db *bolt.DB, bucket, key string) error {
 	})
 }
 
-// ---------------- 15. Export Database ----------------
+// ---------------- 16. Export Database ----------------
 
 func ExportDB(db *bolt.DB, filePath string) error {
 	// if err := validStr(filePath); err != nil {
@@ -492,13 +528,12 @@ func ExportDB(db *bolt.DB, filePath string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
 	return enc.Encode(all)
 }
 
-// ---------------- 156. Check Bucket ----------------
+// ---------------- 17. Check Bucket ----------------
 
 func CheckBucket(db *bolt.DB, bucket string) (bool, error) {
 	// if err := validStr(bucket); err != nil {
