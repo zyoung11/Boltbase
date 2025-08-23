@@ -2,3 +2,4 @@
 /tmp/*
 tmp/main
 main
+.air.toml
