@@ -73,11 +73,11 @@ func Run(name string, port int, routes []Route, webFS embed.FS) {
 
 func InitDB() error {
 	var err error
-	DB, err = OpenDB("./Boltbase.db")
+	db, err = OpenDB("./Boltbase.db")
 	if err != nil {
 		log.Fatalf("Failed to initialize the database\n%v", err)
 	}
-	list, err := ListBuckets(DB)
+	list, err := ListBuckets(db)
 	if err != nil {
 		log.Fatalf("Failed to list buckets in initialization\n%v", err)
 	}
@@ -86,9 +86,8 @@ func InitDB() error {
 			return nil
 		}
 	}
-	if err := CreateBucket(DB, metadataBucket); err != nil {
+	if err := CreateBucket(db, metadataBucket); err != nil {
 		log.Fatalf("Failed to create metadata bucket in initialization\n%v", err)
 	}
 	return nil
 }
-

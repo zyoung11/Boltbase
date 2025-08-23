@@ -16,6 +16,7 @@ import (
 )
 
 var WebFS embed.FS
+var DB *bolt.DB
 
 // ---------------- Common Tools ----------------
 
@@ -433,7 +434,7 @@ func ScanAllSeq(db *bolt.DB, bucket string) (map[string]string, error) {
 
 // ---------------- 13. Part Scan ----------------
 
-func PartScan(db *bolt.DB, bucket string, start, step int) (map[string]string, error) {
+func PartScan(db *bolt.DB, bucket string, start int, step int) (map[string]string, error) {
 	if start < 0 || step <= 0 {
 		return nil, errors.New("start must be >=0 and step must be >0")
 	}
@@ -456,6 +457,37 @@ func PartScan(db *bolt.DB, bucket string, start, step int) (map[string]string, e
 		// 顺序取 step 条
 		for i := 0; i < step && k != nil; i++ {
 			out[string(k)] = string(v)
+			k, v = c.Next()
+		}
+		return nil
+	})
+
+	return out, err
+}
+
+func PartScanSeq(db *bolt.DB, bucket string, start int, step int) (map[string]string, error) {
+	if start < 0 || step <= 0 {
+		return nil, errors.New("start must be >=0 and step must be >0")
+	}
+
+	out := make(map[string]string)
+
+	err := db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return ErrBucketNotFound
+		}
+
+		c := b.Cursor()
+		// 跳到第 start 条
+		k, v := c.First()
+		for i := 0; i < start && k != nil; i++ {
+			k, v = c.Next()
+		}
+
+		// 顺序取 step 条
+		for i := 0; i < step && k != nil; i++ {
+			out[uint32ToPadded10BE(k)] = string(v)
 			k, v = c.Next()
 		}
 		return nil

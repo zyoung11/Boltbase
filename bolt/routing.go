@@ -2,13 +2,12 @@ package bolt
 
 import (
 	"encoding/base64"
-
 	"errors"
 	"net/url"
 
 	"time"
 
-	bbolt "github.com/boltdb/bolt"
+	bolt "github.com/boltdb/bolt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	str2duration "github.com/xhit/go-str2duration/v2"
@@ -32,10 +31,11 @@ var Routes = []Route{
 	{Method: "GET", Path: "/kv/prefix/:bucketName/:prefix", Handler: prefixScan},
 	{Method: "GET", Path: "/kv/range/:bucketName/:start/:end", Handler: rangeScan},
 	{Method: "GET", Path: "/kv/all/:bucketName", Handler: scanAll},
+	{Method: "GET", Path: "/kv/part/:bucketName/:start/:step", Handler: partScan},
 
 	// info & export
 	{Method: "GET", Path: "/kv/count/:bucketName", Handler: countBucketKV},
-	{Method: "POST", Path: "/export", Handler: exportDB},
+	{Method: "POST", Path: "/export", Handler: exportdb},
 
 	// auth
 	{Method: "POST", Path: "/auth/password", Handler: createPassword},
@@ -48,10 +48,15 @@ var Routes = []Route{
 	{Method: "GET", Path: "/favicon.ico", Handler: favicon},
 	{Method: "GET", Path: "/web/getBuckets", Handler: getBuckets},
 	{Method: "GET", Path: "/web/getAll", Handler: getAll},
+	{Method: "GET", Path: "/web/setBucket/:bucketName", Handler: setBucket},
+	{Method: "GET", Path: "/web/setPage/:page", Handler: setPage},
+	{Method: "GET", Path: "/web/setStep/:step", Handler: setStep},
+	{Method: "GET", Path: "/web/changePage/:direction", Handler: changePage},
+	{Method: "GET", Path: "/web/debug", Handler: debug},
 }
 
 var (
-	DB                 *bbolt.DB
+	db                 *bolt.DB
 	adminBucket        string = "BoltbaseAdminBucketforUsernameAndPassword"
 	metadataBucket     string = "BoltbaseMetaDataForBucketsKeyType"
 	apiKeyBucket       string = "BoltbaseApiKeyBucket"
@@ -98,12 +103,12 @@ func createBucket(c *fiber.Ctx) error {
 			"error": "Invalid keyType! (must be one of: string, seq, time)",
 		})
 	}
-	if err := PutKV(DB, metadataBucket, bucketName, keyType); err != nil {
+	if err := PutKV(db, metadataBucket, bucketName, keyType); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err := CreateBucket(DB, bucketName); err != nil {
+	if err := CreateBucket(db, bucketName); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -122,7 +127,7 @@ func listBuckets(c *fiber.Ctx) error {
 		return c.SendStatus(401)
 	}
 
-	bucketList, err := ListBuckets(DB)
+	bucketList, err := ListBuckets(db)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -155,7 +160,7 @@ func listBucketsType(c *fiber.Ctx) error {
 		return c.SendStatus(401)
 	}
 
-	bucketListType, err := ScanAll(DB, metadataBucket)
+	bucketListType, err := ScanAll(db, metadataBucket)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -206,7 +211,7 @@ func renameBucket(c *fiber.Ctx) error {
 		}
 	}
 
-	if err := RenameBucket(DB, oldName, newName); err != nil {
+	if err := RenameBucket(db, oldName, newName); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -238,12 +243,12 @@ func dropBucket(c *fiber.Ctx) error {
 			})
 		}
 	}
-	if err := DropBucket(DB, bucketName); err != nil {
+	if err := DropBucket(db, bucketName); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	if err := DeleteKV(DB, metadataBucket, bucketName); err != nil {
+	if err := DeleteKV(db, metadataBucket, bucketName); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -290,7 +295,7 @@ func putKV(c *fiber.Ctx) error {
 		}
 	}
 
-	keyType, err := GetKV(DB, metadataBucket, data.Bucket)
+	keyType, err := GetKV(db, metadataBucket, data.Bucket)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -298,7 +303,7 @@ func putKV(c *fiber.Ctx) error {
 	}
 
 	if keyType == "string" && data.Update {
-		if err := PutKV(DB, data.Bucket, data.Key, data.Value); err != nil {
+		if err := PutKV(db, data.Bucket, data.Key, data.Value); err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -308,9 +313,9 @@ func putKV(c *fiber.Ctx) error {
 	}
 
 	if keyType == "string" && !data.Update {
-		_, err := GetKV(DB, data.Bucket, data.Key)
+		_, err := GetKV(db, data.Bucket, data.Key)
 		if errors.Is(err, ErrKeyNotFound) {
-			if err := PutKV(DB, data.Bucket, data.Key, data.Value); err != nil {
+			if err := PutKV(db, data.Bucket, data.Key, data.Value); err != nil {
 				return c.Status(500).JSON(fiber.Map{
 					"error": err.Error(),
 				})
@@ -329,7 +334,7 @@ func putKV(c *fiber.Ctx) error {
 	}
 
 	if keyType == "seq" {
-		if err := PutSeq(DB, data.Bucket, data.Value); err != nil {
+		if err := PutSeq(db, data.Bucket, data.Value); err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -343,7 +348,7 @@ func putKV(c *fiber.Ctx) error {
 	}
 
 	if keyType == "time" {
-		if err := PutTime(DB, data.Bucket, data.Value); err != nil {
+		if err := PutTime(db, data.Bucket, data.Value); err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -383,7 +388,7 @@ func getKV(c *fiber.Ctx) error {
 		}
 	}
 
-	keyType, err := GetKV(DB, metadataBucket, bucketName)
+	keyType, err := GetKV(db, metadataBucket, bucketName)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -397,7 +402,7 @@ func getKV(c *fiber.Ctx) error {
 				"error": err.Error(),
 			})
 		}
-		value, err := GetKVSeq(DB, bucketName, uint32(key))
+		value, err := GetKVSeq(db, bucketName, uint32(key))
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
@@ -408,7 +413,7 @@ func getKV(c *fiber.Ctx) error {
 		})
 	}
 
-	value, err := GetKV(DB, bucketName, c.Params("key"))
+	value, err := GetKV(db, bucketName, c.Params("key"))
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -444,7 +449,7 @@ func prefixScan(c *fiber.Ctx) error {
 		}
 	}
 
-	keyType, err := GetKV(DB, metadataBucket, bucketName)
+	keyType, err := GetKV(db, metadataBucket, bucketName)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -458,7 +463,7 @@ func prefixScan(c *fiber.Ctx) error {
 				"error": err.Error(),
 			})
 		}
-		kv, err := PrefixScanSeq(DB, bucketName, uint32(prefix))
+		kv, err := PrefixScanSeq(db, bucketName, uint32(prefix))
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
@@ -471,7 +476,7 @@ func prefixScan(c *fiber.Ctx) error {
 		})
 	}
 
-	kv, err := PrefixScan(DB, bucketName, c.Params("prefix"))
+	kv, err := PrefixScan(db, bucketName, c.Params("prefix"))
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -509,7 +514,7 @@ func rangeScan(c *fiber.Ctx) error {
 		}
 	}
 
-	keyType, err := GetKV(DB, metadataBucket, bucketName)
+	keyType, err := GetKV(db, metadataBucket, bucketName)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -529,7 +534,7 @@ func rangeScan(c *fiber.Ctx) error {
 				"error": err.Error(),
 			})
 		}
-		kv, err := RangeScanSeq(DB, bucketName, uint32(start), uint32(end))
+		kv, err := RangeScanSeq(db, bucketName, uint32(start), uint32(end))
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
@@ -541,7 +546,7 @@ func rangeScan(c *fiber.Ctx) error {
 			"kv":    kv,
 		})
 	}
-	kv, err := RangeScan(DB, bucketName, c.Params("start"), c.Params("end"))
+	kv, err := RangeScan(db, bucketName, c.Params("start"), c.Params("end"))
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -579,7 +584,7 @@ func scanAll(c *fiber.Ctx) error {
 		}
 	}
 
-	keyType, err := GetKV(DB, metadataBucket, bucketName)
+	keyType, err := GetKV(db, metadataBucket, bucketName)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -587,7 +592,7 @@ func scanAll(c *fiber.Ctx) error {
 	}
 
 	if keyType == "seq" {
-		kv, err := ScanAllSeq(DB, bucketName)
+		kv, err := ScanAllSeq(db, bucketName)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
@@ -599,13 +604,84 @@ func scanAll(c *fiber.Ctx) error {
 		})
 	}
 
-	kv, err := ScanAll(DB, bucketName)
+	kv, err := ScanAll(db, bucketName)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
 
+	return c.Status(200).JSON(fiber.Map{
+		"total": len(kv),
+		"kv":    kv,
+	})
+}
+
+func partScan(c *fiber.Ctx) error {
+	bucketName := c.Params("bucketName")
+	if bucketName == metadataBucket || bucketName == adminBucket {
+		return c.Status(403).JSON(fiber.Map{
+			"error": "Can't access Boltbase internal buckets",
+		})
+	}
+
+	auth, err := auth(c.Get("Authorization"))
+	if err != nil && err != ErrFooUnauthorized {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	if err == ErrFooUnauthorized {
+		return c.SendStatus(401)
+	}
+	if !auth.IsAdmin {
+		if bucketName == apiKeyBucket {
+			return c.Status(403).JSON(fiber.Map{
+				"error": "Can't access Boltbase internal buckets",
+			})
+		}
+	}
+
+	start, err := c.ParamsInt("start")
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	step, err := c.ParamsInt("step")
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	keyType, err := GetKV(db, metadataBucket, bucketName)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	if keyType == "seq" {
+		kv, err := PartScanSeq(db, bucketName, start, step)
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		return c.Status(200).JSON(fiber.Map{
+			"total": len(kv),
+			"kv":    kv,
+		})
+	}
+
+	kv, err := PartScan(db, bucketName, start, step)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
 	return c.Status(200).JSON(fiber.Map{
 		"total": len(kv),
 		"kv":    kv,
@@ -637,7 +713,7 @@ func countBucketKV(c *fiber.Ctx) error {
 		}
 	}
 
-	total, err := CountBucketKV(DB, bucketName)
+	total, err := CountBucketKV(db, bucketName)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -673,7 +749,7 @@ func deleteKV(c *fiber.Ctx) error {
 		}
 	}
 
-	if err := DeleteKV(DB, bucketName, c.Params("key")); err != nil {
+	if err := DeleteKV(db, bucketName, c.Params("key")); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -681,7 +757,7 @@ func deleteKV(c *fiber.Ctx) error {
 	return c.SendStatus(204)
 }
 
-func exportDB(c *fiber.Ctx) error {
+func exportdb(c *fiber.Ctx) error {
 	auth, err := auth(c.Get("Authorization"))
 	if err != nil && err != ErrFooUnauthorized {
 		return c.Status(500).JSON(fiber.Map{
@@ -695,7 +771,7 @@ func exportDB(c *fiber.Ctx) error {
 		return c.SendStatus(403)
 	}
 
-	if err := ExportDB(DB, "./Boltbase.json"); err != nil {
+	if err := ExportDB(db, "./Boltbase.json"); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -717,13 +793,13 @@ func auth(authToken string) (AuthResult, error) {
 		haveApiKeyBucket bool
 	)
 
-	haveAdminBucket, err := CheckBucket(DB, adminBucket)
+	haveAdminBucket, err := CheckBucket(db, adminBucket)
 	if err != nil {
 		// fmt.Println("debug-auth: 1")
 		return AuthResult{false, false, false, false}, err
 	}
 
-	haveApiKeyBucket, err = CheckBucket(DB, apiKeyBucket)
+	haveApiKeyBucket, err = CheckBucket(db, apiKeyBucket)
 	if err != nil {
 		// fmt.Println("debug-auth: 2")
 		return AuthResult{false, false, false, false}, err
@@ -734,7 +810,7 @@ func auth(authToken string) (AuthResult, error) {
 		return AuthResult{true, false, haveAdminBucket, haveApiKeyBucket}, nil
 	}
 
-	UsernamePassword, err := GetKV(DB, adminBucket, "authToken")
+	UsernamePassword, err := GetKV(db, adminBucket, "authToken")
 	if err != nil {
 		// fmt.Println("debug-auth: 4")
 		return AuthResult{false, false, haveAdminBucket, haveApiKeyBucket}, err
@@ -750,7 +826,7 @@ func auth(authToken string) (AuthResult, error) {
 		return AuthResult{false, false, haveAdminBucket, haveApiKeyBucket}, ErrFooUnauthorized
 	}
 
-	expiryDate, err := GetKV(DB, apiKeyBucket, authToken)
+	expiryDate, err := GetKV(db, apiKeyBucket, authToken)
 	if err != nil && err != ErrKeyNotFound {
 		// fmt.Println("debug-auth: 7")
 		return AuthResult{false, false, haveAdminBucket, haveApiKeyBucket}, err
@@ -790,7 +866,7 @@ func createPassword(c *fiber.Ctx) error {
 		return c.Status(403).Send(nil)
 	}
 	if !auth.HaveAdminBucket {
-		if err := CreateBucket(DB, adminBucket); err != nil {
+		if err := CreateBucket(db, adminBucket); err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -814,7 +890,7 @@ func createPassword(c *fiber.Ctx) error {
 	raw := admin.Username + ":" + admin.Password
 	encoded := base64.StdEncoding.EncodeToString([]byte(raw))
 	authHeader := "Basic " + encoded
-	if err := PutKV(DB, adminBucket, "authToken", authHeader); err != nil {
+	if err := PutKV(db, adminBucket, "authToken", authHeader); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -847,7 +923,7 @@ func deletePassword(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := DropBucket(DB, adminBucket); err != nil {
+	if err := DropBucket(db, adminBucket); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -869,12 +945,12 @@ func createApiKey(c *fiber.Ctx) error {
 		return c.SendStatus(403)
 	}
 	if !auth.HaveApiKeyBucket {
-		if err := CreateBucket(DB, apiKeyBucket); err != nil {
+		if err := CreateBucket(db, apiKeyBucket); err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
 			})
 		}
-		if err := PutKV(DB, metadataBucket, apiKeyBucket, "string"); err != nil {
+		if err := PutKV(db, metadataBucket, apiKeyBucket, "string"); err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -897,7 +973,7 @@ func createApiKey(c *fiber.Ctx) error {
 	}
 	future_string := time.Now().UTC().Add(future_s2d).Format(time.RFC3339)
 	uuid := uuid.NewString()
-	if err := PutKV(DB, apiKeyBucket, uuid, future_string); err != nil {
+	if err := PutKV(db, apiKeyBucket, uuid, future_string); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -922,7 +998,7 @@ func deleteExpiryApiKey(c *fiber.Ctx) error {
 		return c.SendStatus(403)
 	}
 
-	apiKeyMap, err := ScanAll(DB, apiKeyBucket)
+	apiKeyMap, err := ScanAll(db, apiKeyBucket)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -937,7 +1013,7 @@ func deleteExpiryApiKey(c *fiber.Ctx) error {
 			})
 		}
 		if t.Before(now) {
-			if err := DeleteKV(DB, apiKeyBucket, k); err != nil {
+			if err := DeleteKV(db, apiKeyBucket, k); err != nil {
 				return c.Status(500).JSON(fiber.Map{
 					"error": err.Error(),
 				})

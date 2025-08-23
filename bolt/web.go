@@ -2,10 +2,20 @@ package bolt
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 )
+
+type UserState struct {
+	Bucket string
+	Page   int
+	Start  int
+	Step   int
+}
+
+var userState = UserState{Step: 25}
 
 func index(c *fiber.Ctx) error {
 	return c.Render("index", fiber.Map{
@@ -21,7 +31,7 @@ func favicon(c *fiber.Ctx) error {
 }
 
 func getBuckets(c *fiber.Ctx) error {
-	bucketList, err := ListBuckets(DB)
+	bucketList, err := ListBuckets(db)
 	if err != nil {
 		return c.SendStatus(500)
 	}
@@ -46,13 +56,13 @@ func getAll(c *fiber.Ctx) error {
 		return c.SendStatus(403)
 	}
 
-	keyType, err := GetKV(DB, metadataBucket, bucketName)
+	keyType, err := GetKV(db, metadataBucket, bucketName)
 	if err != nil {
 		return c.SendStatus(500)
 	}
 
 	if keyType == "seq" {
-		kv, err := ScanAllSeq(DB, bucketName)
+		kv, err := ScanAllSeq(db, bucketName)
 		if err != nil {
 			return c.SendStatus(500)
 		}
@@ -62,7 +72,7 @@ func getAll(c *fiber.Ctx) error {
 		})
 	}
 
-	kv, err := ScanAll(DB, bucketName)
+	kv, err := ScanAll(db, bucketName)
 	if err != nil {
 		return c.SendStatus(500)
 	}
@@ -70,5 +80,137 @@ func getAll(c *fiber.Ctx) error {
 	return c.Status(200).Render("HTMX/getAll", fiber.Map{
 		"kv":    kv,
 		"Count": len(kv),
+	})
+}
+
+func setBucket(c *fiber.Ctx) error {
+	bucketNameUnsafe := c.Params("bucketName")
+
+	bucketName := strings.Clone(bucketNameUnsafe)
+
+	userState.Bucket = bucketName
+	userState.Page = 0
+	userState.Start = 0
+
+	return sendPart(c)
+}
+
+func setPage(c *fiber.Ctx) error {
+	pageInt, err := c.ParamsInt("page")
+	if err != nil {
+		return c.SendStatus(500)
+	}
+
+	if pageInt <= 0 {
+		return c.SendStatus(400)
+	}
+
+	pageInt--
+
+	bucketName := userState.Bucket
+	count, err := CountBucketKV(db, bucketName)
+	if err != nil {
+		return c.SendStatus(500)
+	}
+
+	var maxPage int = (count+userState.Step-1)/userState.Step - 1
+
+	if pageInt > maxPage {
+		pageInt = maxPage
+	}
+
+	if count < userState.Step {
+		pageInt = 0
+	}
+
+	userState.Page = pageInt
+	userState.Start = pageInt * userState.Step
+
+	return sendPart(c)
+}
+
+func setStep(c *fiber.Ctx) error {
+	stepInt, err := c.ParamsInt("step")
+	if err != nil {
+		return c.SendStatus(500)
+	}
+
+	if stepInt <= 0 {
+		return c.SendStatus(400)
+	}
+
+	userState.Step = stepInt
+	userState.Start = stepInt * userState.Page
+
+	return sendPart(c)
+}
+
+func changePage(c *fiber.Ctx) error {
+	directionUnsafe := c.Params("direction")
+
+	direction := strings.Clone(directionUnsafe)
+
+	bucketName := userState.Bucket
+	count, err := CountBucketKV(db, bucketName)
+	if err != nil {
+		return c.SendStatus(500)
+	}
+
+	if direction == "left" && userState.Page != 0 {
+		userState.Page = userState.Page - 1
+		userState.Start = userState.Page * userState.Step
+	}
+
+	if direction == "right" && userState.Page != (count+userState.Step-1)/userState.Step-1 {
+		userState.Page = userState.Page + 1
+		userState.Start = userState.Page * userState.Step
+	}
+
+	return sendPart(c)
+}
+
+func sendPart(c *fiber.Ctx) error {
+	keyType, err := GetKV(db, metadataBucket, userState.Bucket)
+	if err != nil {
+		return c.SendStatus(500)
+	}
+
+	if keyType == "seq" {
+		kv, err := PartScanSeq(db, userState.Bucket, userState.Start, userState.Step)
+		if err != nil {
+			return c.SendStatus(500)
+		}
+		return c.Status(200).JSON(fiber.Map{
+			"total": len(kv),
+			"kv":    kv,
+		})
+		// return c.Status(200).Render("HTMX/getPart", fiber.Map{
+		// 	"total": len(kv),
+		// 	"kv":    kv,
+		// })
+	}
+
+	kv, err := PartScan(db, userState.Bucket, userState.Start, userState.Step)
+	if err != nil {
+		return c.SendStatus(500)
+	}
+
+	return c.Status(200).JSON(fiber.Map{
+		"total": len(kv),
+		"kv":    kv,
+	})
+
+	// return c.Status(200).Render("HTMX/getPart", fiber.Map{
+	// 	"total": len(kv),
+	// 	"kv":    kv,
+	// })
+}
+
+func debug(c *fiber.Ctx) error {
+	return c.Status(200).JSON(fiber.Map{
+		"bucket": userState.Bucket,
+		"start":  userState.Start,
+		"step":   userState.Step,
+		"page":   userState.Page,
 	})
 }
