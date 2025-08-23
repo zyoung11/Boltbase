@@ -8,18 +8,23 @@
   <script src="/public/htmx.min.js"></script>
 </head>
 <body>
-  <div class="container">
-
-    <div id="buckets"
-         hx-get="/web/getBuckets"
-         hx-trigger="load"
-         hx-swap="innerHTML">
-      <em>正在加载 Bucket 列表…</em>
+  
+  <div class="main-layout">
+    <div id="sidebar" class="sidebar">
+      <div id="buckets"
+           hx-get="/web/getBuckets"
+           hx-trigger="load"
+           hx-swap="innerHTML">
+        <em>正在加载 Bucket的列表</em>
+      </div>
     </div>
-
-    <div id="bucket-content">
-      <em>点击 Bucket 查看内容</em>
+    <!-- 这里是主要键值对的显示的部分 -->
+    <div id="content" class="content-area">
+      <div id="bucket-content">
+        <em>点击 Bucket 查看内容</em>
+      </div>
     </div>
   </div>
+  
 </body>
 </html>

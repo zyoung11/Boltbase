@@ -1,24 +1,72 @@
-<!-- <h3>Bucket: {{.BucketName}}</h3> -->
+<div class="data-container">
+    <p>数量: {{.Count}}</p>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Key</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $k, $v := .kv}}
+                <tr>
+                    <td><p class="kv_td">{{$k}}</p></td>
+                    <td><p class="kv_td">{{$v}}</p></td>
+                </tr>
+            {{else}}
+                <tr>
+                    <td colspan="2" class="no-data">这个 bucket 里没有数据</td>
+                </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
 
-<p>数量: {{.Count}}</p>
+<div class="pagination-controls">
+    <div class="page-nav">
+        <button hx-get="/web/getAll?bucketName={{.BucketName}}&page={{.PrevPage}}&pageSize={{.PageSize}}" 
+                hx-target="#bucket-content"
+                hx-swap="innerHTML" 
+                {{if not .HasPrev}}disabled{{end}}>
+            &laquo; 上一页
+        </button>
+        <button hx-get="/web/getAll?bucketName={{.BucketName}}&page={{.NextPage}}&pageSize={{.PageSize}}" 
+                hx-target="#bucket-content"
+                hx-swap="innerHTML" 
+                {{if not .HasNext}}disabled{{end}}>
+            下一页 &raquo;
+        </button>
+    </div>
 
-<table class="data-table">
-  <thead>
-    <tr>
-      <th>Key</th>
-      <th>Value</th>
-    </tr>
-  </thead>
-  <tbody>
-    {{range $k, $v := .kv}}
-      <tr>
-        <td>{{$k}}</td>
-        <td>{{$v}}</td>
-      </tr>
-    {{else}}
-      <tr>
-        <td colspan="2" class="no-data">这个 bucket 里没有数据</td>
-      </tr>
-    {{end}}
-  </tbody>
-</table>
+    <div class="page-numbers">
+        {{range $i, $p := .PageNumbers}}
+            <button hx-get="/web/getAll?bucketName={{.BucketName}}&page={{$p}}&pageSize={{.PageSize}}" 
+                    hx-target="#bucket-content"
+                    hx-swap="innerHTML" 
+                    class="{{if eq $p $.CurrentPage}}active{{end}}">
+                {{$p}}
+            </button>
+        {{end}}
+    </div>
+
+    <div class="page-size-buttons">
+        <button hx-get="/web/getAll?bucketName={{.BucketName}}&page=1&pageSize=25" 
+                hx-target="#bucket-content"
+                hx-swap="innerHTML"
+                class="{{if eq .PageSize 25}}active{{end}}">
+            25
+        </button>
+        <button hx-get="/web/getAll?bucketName={{.BucketName}}&page=1&pageSize=50" 
+                hx-target="#bucket-content"
+                hx-swap="innerHTML"
+                class="{{if eq .PageSize 50}}active{{end}}">
+            50
+        </button>
+        <button hx-get="/web/getAll?bucketName={{.BucketName}}&page=1&pageSize=80" 
+                hx-target="#bucket-content"
+                hx-swap="innerHTML"
+                class="{{if eq .PageSize 80}}active{{end}}">
+            80
+        </button>
+    </div>
+</div>

@@ -1,8 +1,8 @@
-<h1>Bucket 列表演示</h1>
+<h1>Bucket列表</h1>
 <ul>
   {{range .BucketList}}
     <li>
-        <form hx-get="/web/getAll" hx-target="#bucket-content" hx-swap="innerHTML">
+        <form hx-get="/web/getAll" hx-target="#bucket-content" hx-swap="innerHTML" >
             <input type="hidden" name="bucketName" value="{{.}}" />
             <button type="submit" class="bucket-btn">
                 {{.}}
