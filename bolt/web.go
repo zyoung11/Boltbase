@@ -216,6 +216,33 @@ func sendPart(c *fiber.Ctx) error {
 	})
 }
 
+func getInfoWeb(c *fiber.Ctx) error {
+	bucketName := c.Params("bucketName")
+	if bucketName == metadataBucket || bucketName == adminBucket {
+		return c.SendStatus(403)
+	}
+
+	auth, err := auth(c.Get("Authorization"))
+	if err != nil && err != ErrFooUnauthorized {
+		return c.SendStatus(500)
+	}
+	if err == ErrFooUnauthorized {
+		return c.SendStatus(401)
+	}
+	if !auth.IsAdmin {
+		if bucketName == apiKeyBucket {
+			return c.SendStatus(403)
+		}
+	}
+	info, err := GetInfo(db, bucketName)
+	if err != nil {
+		return c.SendStatus(500)
+	}
+	return c.Status(200).Render("HTMX/getInfo", fiber.Map{
+		"Info": info,
+	})
+}
+
 func debug(c *fiber.Ctx) error {
 	return c.Status(200).JSON(fiber.Map{
 		"bucket": userState.Bucket,

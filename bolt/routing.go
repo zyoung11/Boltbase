@@ -54,6 +54,7 @@ var Routes = []Route{
 	{Method: "GET", Path: "/web/setStep/:step", Handler: setStep},
 	{Method: "GET", Path: "/web/changePage/:direction", Handler: changePage},
 	{Method: "GET", Path: "/web/debug", Handler: debug},
+	{Method: "GET", Path: "/web/info/:bucketName", Handler: getInfoWeb},
 }
 
 var (

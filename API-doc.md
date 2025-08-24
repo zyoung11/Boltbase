@@ -134,3 +134,17 @@
  - `web/views/HTMX/getPart.html`
 
 ---
+
+#### **9. 获取桶元数据**
+**HTTP方法**：GET 
+
+**URL**：`http://localhost:5090/web/info/{bucketName}`
+
+**URL参数**：`bucketName`（string类型）
+
+**表单参数**：无
+
+**返回**：
+ - `Info`（字典类型：键是元数据的名字，string类型；值是对应的数据，int类型）
+
+---

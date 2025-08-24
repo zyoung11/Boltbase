@@ -6,9 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"strconv"
 
-	// "fmt"
 	"net/url"
 	"os"
 	"time"
@@ -590,29 +588,27 @@ func CheckBucket(db *bolt.DB, bucket string) (bool, error) {
 
 // ---------------- 18. Get Info ----------------
 
-func GetInfo(db *bolt.DB, bucket string) ([]string, error) {
-	info := make([]string, 0, 13)
+func GetInfo(db *bolt.DB, bucket string) (map[string]int, error) {
+	info := make(map[string]int)
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
 		}
 		stats := b.Stats()
-		info = append(info,
-			strconv.Itoa(int(stats.BranchAlloc)),
-			strconv.Itoa(int(stats.BranchInuse)),
-			strconv.Itoa(int(stats.BranchOverflowN)),
-			strconv.Itoa(int(stats.BranchPageN)),
-			strconv.Itoa(int(stats.BucketN)),
-			strconv.Itoa(int(stats.Depth)),
-			strconv.Itoa(int(stats.InlineBucketInuse)),
-			strconv.Itoa(int(stats.InlineBucketN)),
-			strconv.Itoa(int(stats.KeyN)),
-			strconv.Itoa(int(stats.LeafAlloc)),
-			strconv.Itoa(int(stats.LeafInuse)),
-			strconv.Itoa(int(stats.LeafOverflowN)),
-			strconv.Itoa(int(stats.LeafPageN)),
-		)
+		info["BranchAlloc"] = int(stats.BranchAlloc)
+		info["BranchInuse"] = int(stats.BranchInuse)
+		info["BranchOverflowN"] = int(stats.BranchOverflowN)
+		info["BranchPageN"] = int(stats.BranchPageN)
+		info["BucketN"] = int(stats.BucketN)
+		info["Depth"] = int(stats.Depth)
+		info["InlineBucketInuse"] = int(stats.InlineBucketInuse)
+		info["InlineBucketN"] = int(stats.InlineBucketN)
+		info["KeyN"] = int(stats.KeyN)
+		info["LeafAlloc"] = int(stats.LeafAlloc)
+		info["LeafInuse"] = int(stats.LeafInuse)
+		info["LeafOverflowN"] = int(stats.LeafOverflowN)
+		info["LeafPageN"] = int(stats.LeafPageN)
 		return nil
 	})
 	return info, err
