@@ -180,14 +180,10 @@ func sendPart(c *fiber.Ctx) error {
 		if err != nil {
 			return c.SendStatus(500)
 		}
-		return c.Status(200).JSON(fiber.Map{
+		return c.Status(200).Render("HTMX/getPart", fiber.Map{
 			"total": len(kv),
 			"kv":    kv,
 		})
-		// return c.Status(200).Render("HTMX/getPart", fiber.Map{
-		// 	"total": len(kv),
-		// 	"kv":    kv,
-		// })
 	}
 
 	kv, err := PartScan(db, userState.Bucket, userState.Start, userState.Step)
@@ -195,15 +191,10 @@ func sendPart(c *fiber.Ctx) error {
 		return c.SendStatus(500)
 	}
 
-	return c.Status(200).JSON(fiber.Map{
+	return c.Status(200).Render("HTMX/getPart", fiber.Map{
 		"total": len(kv),
 		"kv":    kv,
 	})
-
-	// return c.Status(200).Render("HTMX/getPart", fiber.Map{
-	// 	"total": len(kv),
-	// 	"kv":    kv,
-	// })
 }
 
 func debug(c *fiber.Ctx) error {
