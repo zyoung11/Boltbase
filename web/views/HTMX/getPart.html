@@ -1,5 +1,5 @@
 <div class="data-container">
-    <p>数量: {{.totalKV}}</p>
+    <p>数量: {{.totalKVKV}}</p>
     <table class="data-table">
         <thead>
             <tr>
@@ -36,7 +36,7 @@
     </button>
 
     <div class="page-numbers">
-        {{range $i, $p := .totalPage}}
+        {{range $i, $p := .numList}}
             <button hx-get="/web/setPage/{{$p}}" 
                     hx-target="#bucket-content"
                     hx-swap="innerHTML" 
