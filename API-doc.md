@@ -50,7 +50,7 @@
 
 **URL参数**：无
 
-**表单参数**：`bucketName`
+**表单参数**：`bucketName`（string类型）
 
 **返回**：
  - `kv`（字典类型）
@@ -62,9 +62,9 @@
 #### **5. 选择桶**
 **HTTP方法**：GET 
 
-**URL**：`http://localhost:5090/web/setBucket`
+**URL**：`http://localhost:5090/web/setBucket/{bucketName}`
 
-**URL参数**：`bucketName`
+**URL参数**：`bucketName`（string类型）
 
 **表单参数**：无
 
@@ -78,9 +78,9 @@
 #### **6. 选择页**
 **HTTP方法**：GET 
 
-**URL**：`http://localhost:5090/web/setPage`
+**URL**：`http://localhost:5090/web/setPage/{page}`
 
-**URL参数**：`page`
+**URL参数**：`page`（int类型）
 
 **表单参数**：无
 
@@ -94,9 +94,9 @@
 #### **7. 选择一页键值对数量**
 **HTTP方法**：GET 
 
-**URL**：`http://localhost:5090/web/setStep`
+**URL**：`http://localhost:5090/web/setStep/{step}`
 
-**URL参数**：`step`
+**URL参数**：`step`（int类型）
 
 **表单参数**：无
 
@@ -110,9 +110,9 @@
 #### **8. 上一页&下一页**
 **HTTP方法**：GET 
 
-**URL**：`http://localhost:5090/web/changePage`
+**URL**：`http://localhost:5090/web/changePage/{direction}`
 
-**URL参数**：`direction`
+**URL参数**：`direction`（string类型）
 
 **表单参数**：无
 
