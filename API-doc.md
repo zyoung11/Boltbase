@@ -71,7 +71,10 @@
 **返回**：
  - `kv`（字典类型）
  - `total` （int类型：返回的键值对数量）
- - `web/views/HTMX/getPart.html`
+ - `totalKV` (int类型：返回桶内一共有多少键值对)
+ - `totalPage`（int类型： 返回一共有多少页）
+ - `currentPage`（int类型： 返回当前在哪页）
+ - `web/views/HTMX/getPart.html`**返回**：
 
 ---
 
@@ -87,6 +90,9 @@
 **返回**：
  - `kv`（字典类型）
  - `total` （int类型：返回的键值对数量）
+ - `totalKV` (int类型：返回桶内一共有多少键值对)
+ - `totalPage`（int类型： 返回一共有多少页）
+ - `currentPage`（int类型： 返回当前在哪页）
  - `web/views/HTMX/getPart.html`
 
 ---
@@ -103,6 +109,9 @@
 **返回**：
  - `kv`（字典类型）
  - `total` （int类型：返回的键值对数量）
+ - `totalKV` (int类型：返回桶内一共有多少键值对)
+ - `totalPage`（int类型： 返回一共有多少页）
+ - `currentPage`（int类型： 返回当前在哪页）
  - `web/views/HTMX/getPart.html`
 
 ---
@@ -119,6 +128,9 @@
 **返回**：
  - `kv`（字典类型）
  - `total` （int类型：返回的键值对数量）
+ - `totalKV` (int类型：返回桶内一共有多少键值对)
+ - `totalPage`（int类型： 返回一共有多少页）
+ - `currentPage`（int类型： 返回当前在哪页）
  - `web/views/HTMX/getPart.html`
 
 ---
