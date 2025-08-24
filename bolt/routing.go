@@ -35,6 +35,7 @@ var Routes = []Route{
 
 	// info & export
 	{Method: "GET", Path: "/kv/count/:bucketName", Handler: countBucketKV},
+	{Method: "GET", Path: "/bucket/info/:bucketName", Handler: getInfo},
 	{Method: "POST", Path: "/export", Handler: exportdb},
 
 	// auth
@@ -721,6 +722,41 @@ func countBucketKV(c *fiber.Ctx) error {
 	}
 	return c.Status(200).JSON(fiber.Map{
 		"total": total,
+	})
+}
+
+func getInfo(c *fiber.Ctx) error {
+	bucketName := c.Params("bucketName")
+	if bucketName == metadataBucket || bucketName == adminBucket {
+		return c.Status(403).JSON(fiber.Map{
+			"error": "Can't access Boltbase internal buckets",
+		})
+	}
+
+	auth, err := auth(c.Get("Authorization"))
+	if err != nil && err != ErrFooUnauthorized {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	if err == ErrFooUnauthorized {
+		return c.Status(401).Send(nil)
+	}
+	if !auth.IsAdmin {
+		if bucketName == apiKeyBucket {
+			return c.Status(403).JSON(fiber.Map{
+				"error": "Can't access Boltbase internal buckets",
+			})
+		}
+	}
+	info, err := GetInfo(db, bucketName)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	return c.Status(200).JSON(fiber.Map{
+		"Info": info,
 	})
 }
 

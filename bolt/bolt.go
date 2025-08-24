@@ -586,3 +586,31 @@ func CheckBucket(db *bolt.DB, bucket string) (bool, error) {
 	}
 	return true, nil
 }
+
+// ---------------- 18. Get Info ----------------
+
+func GetInfo(db *bolt.DB, bucket string) ([]string, error) {
+	info := make([]string, 14)
+	err := db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return ErrBucketNotFound
+		}
+		info = append(info, string(b.Stats().BranchAlloc))
+		info = append(info, string(b.Stats().BranchInuse))
+		info = append(info, string(b.Stats().BranchOverflowN))
+		info = append(info, string(b.Stats().BranchPageN))
+		info = append(info, string(b.Stats().BucketN))
+		info = append(info, string(b.Stats().Depth))
+		info = append(info, string(b.Stats().InlineBucketInuse))
+		info = append(info, string(b.Stats().InlineBucketN))
+		info = append(info, string(b.Stats().KeyN))
+		info = append(info, string(b.Stats().LeafAlloc))
+		info = append(info, string(b.Stats().LeafInuse))
+		info = append(info, string(b.Stats().LeafOverflowN))
+		info = append(info, string(b.Stats().LeafPageN))
+		info = append(info, string(b.Stats().LeafPageN))
+		return nil
+	})
+	return info, err
+}
