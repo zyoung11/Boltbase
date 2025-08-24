@@ -3,7 +3,7 @@
     <p>总页数: {{.totalPage}}</p>
     
     <div id="info-display" 
-         hx-get="/web/info/{{.BucketName}}" 
+         hx-get="/web/info/{{.bucketName}}" 
          hx-trigger="load" 
          hx-swap="innerHTML">
          <em>正在加载元数据...</em>
