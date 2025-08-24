@@ -174,11 +174,25 @@ func sendPart(c *fiber.Ctx) error {
 		return c.SendStatus(500)
 	}
 
+	count, err := CountBucketKV(db, userState.Bucket)
+	if err != nil {
+		return c.SendStatus(500)
+	}
+
 	if keyType == "seq" {
 		kv, err := PartScanSeq(db, userState.Bucket, userState.Start, userState.Step)
 		if err != nil {
 			return c.SendStatus(500)
 		}
+
+		// return c.Status(200).JSON(fiber.Map{
+		// 	"totalKV":     count,
+		// 	"total":       len(kv),
+		// 	"kv":          kv,
+		// 	"totalPage":   int((count + userState.Step - 1) / userState.Step),
+		// 	"currentPage": userState.Page + 1,
+		// })
+
 		return c.Status(200).Render("HTMX/getPart", fiber.Map{
 			"total": len(kv),
 			"kv":    kv,
@@ -190,10 +204,13 @@ func sendPart(c *fiber.Ctx) error {
 		return c.SendStatus(500)
 	}
 
-	count, err := CountBucketKV(db, userState.Bucket)
-	if err != nil {
-		return c.SendStatus(500)
-	}
+	// return c.Status(200).JSON(fiber.Map{
+	// 	"totalKV":     count,
+	// 	"total":       len(kv),
+	// 	"kv":          kv,
+	// 	"totalPage":   int((count + userState.Step - 1) / userState.Step),
+	// 	"currentPage": userState.Page + 1,
+	// })
 
 	return c.Status(200).Render("HTMX/getPart", fiber.Map{
 		"totalKV":     count,
