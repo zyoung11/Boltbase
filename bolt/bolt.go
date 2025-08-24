@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"strconv"
 
 	// "fmt"
 	"net/url"
@@ -590,26 +591,28 @@ func CheckBucket(db *bolt.DB, bucket string) (bool, error) {
 // ---------------- 18. Get Info ----------------
 
 func GetInfo(db *bolt.DB, bucket string) ([]string, error) {
-	info := make([]string, 14)
+	info := make([]string, 0, 13)
 	err := db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
 		}
-		info = append(info, string(b.Stats().BranchAlloc))
-		info = append(info, string(b.Stats().BranchInuse))
-		info = append(info, string(b.Stats().BranchOverflowN))
-		info = append(info, string(b.Stats().BranchPageN))
-		info = append(info, string(b.Stats().BucketN))
-		info = append(info, string(b.Stats().Depth))
-		info = append(info, string(b.Stats().InlineBucketInuse))
-		info = append(info, string(b.Stats().InlineBucketN))
-		info = append(info, string(b.Stats().KeyN))
-		info = append(info, string(b.Stats().LeafAlloc))
-		info = append(info, string(b.Stats().LeafInuse))
-		info = append(info, string(b.Stats().LeafOverflowN))
-		info = append(info, string(b.Stats().LeafPageN))
-		info = append(info, string(b.Stats().LeafPageN))
+		stats := b.Stats()
+		info = append(info,
+			strconv.Itoa(int(stats.BranchAlloc)),
+			strconv.Itoa(int(stats.BranchInuse)),
+			strconv.Itoa(int(stats.BranchOverflowN)),
+			strconv.Itoa(int(stats.BranchPageN)),
+			strconv.Itoa(int(stats.BucketN)),
+			strconv.Itoa(int(stats.Depth)),
+			strconv.Itoa(int(stats.InlineBucketInuse)),
+			strconv.Itoa(int(stats.InlineBucketN)),
+			strconv.Itoa(int(stats.KeyN)),
+			strconv.Itoa(int(stats.LeafAlloc)),
+			strconv.Itoa(int(stats.LeafInuse)),
+			strconv.Itoa(int(stats.LeafOverflowN)),
+			strconv.Itoa(int(stats.LeafPageN)),
+		)
 		return nil
 	})
 	return info, err
