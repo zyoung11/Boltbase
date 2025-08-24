@@ -74,6 +74,7 @@
  - `totalKV` (int类型：返回桶内一共有多少键值对)
  - `totalPage`（int类型： 返回一共有多少页）
  - `currentPage`（int类型： 返回当前在哪页）
+ - `bucketName`（string类型：当前在使用的桶）
  - `web/views/HTMX/getPart.html`**返回**：
 
 ---
@@ -93,6 +94,7 @@
  - `totalKV` (int类型：返回桶内一共有多少键值对)
  - `totalPage`（int类型： 返回一共有多少页）
  - `currentPage`（int类型： 返回当前在哪页）
+ - `bucketName`（string类型：当前在使用的桶）
  - `web/views/HTMX/getPart.html`
 
 ---
@@ -112,6 +114,7 @@
  - `totalKV` (int类型：返回桶内一共有多少键值对)
  - `totalPage`（int类型： 返回一共有多少页）
  - `currentPage`（int类型： 返回当前在哪页）
+ - `bucketName`（string类型：当前在使用的桶）
  - `web/views/HTMX/getPart.html`
 
 ---
@@ -131,6 +134,7 @@
  - `totalKV` (int类型：返回桶内一共有多少键值对)
  - `totalPage`（int类型： 返回一共有多少页）
  - `currentPage`（int类型： 返回当前在哪页）
+ - `bucketName`（string类型：当前在使用的桶）
  - `web/views/HTMX/getPart.html`
 
 ---

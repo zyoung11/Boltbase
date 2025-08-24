@@ -107,8 +107,7 @@ func setPage(c *fiber.Ctx) error {
 
 	pageInt--
 
-	bucketName := userState.Bucket
-	count, err := CountBucketKV(db, bucketName)
+	count, err := CountBucketKV(db, userState.Bucket)
 	if err != nil {
 		return c.SendStatus(500)
 	}
@@ -198,6 +197,7 @@ func sendPart(c *fiber.Ctx) error {
 			"totalPage":   int((count + userState.Step - 1) / userState.Step),
 			"currentPage": userState.Page + 1,
 			"numList":     num,
+			"bucketName":  userState.Bucket,
 		})
 	}
 
@@ -213,6 +213,7 @@ func sendPart(c *fiber.Ctx) error {
 		"totalPage":   int((count + userState.Step - 1) / userState.Step),
 		"currentPage": userState.Page + 1,
 		"numList":     num,
+		"bucketName":  userState.Bucket,
 	})
 }
 
