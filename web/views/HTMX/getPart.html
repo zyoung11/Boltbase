@@ -1,5 +1,5 @@
 <div class="data-container">
-    <p>数量: {{.total}}</p>
+    <p>数量: {{.totalKV}}</p>
     <table class="data-table">
         <thead>
             <tr>
@@ -25,19 +25,18 @@
 <div class="pagination-controls">
     <button hx-get="/web/changePage/left" 
             hx-target="#bucket-content"
-            hx-swap="innerHTML" 
-            {{if not .HasPrev}}disabled{{end}}>
+            hx-swap="innerHTML" >
+
         &laquo; 上一页
     </button>
     <button hx-get="/web/changePage/right" 
             hx-target="#bucket-content"
-            hx-swap="innerHTML" 
-            {{if not .HasNext}}disabled{{end}}>
+            hx-swap="innerHTML" >
         下一页 &raquo;
     </button>
 
     <div class="page-numbers">
-        {{range $i, $p := .page}}
+        {{range $i, $p := .totalPage}}
             <button hx-get="/web/setPage/{{$p}}" 
                     hx-target="#bucket-content"
                     hx-swap="innerHTML" 
