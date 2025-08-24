@@ -1,0 +1,6 @@
+<h3>Bucket 元数据</h3>
+<ul>
+    {{range $key, $value := .Info}}
+        <li><strong>{{$key}}</strong>: {{$value}}</li>
+    {{end}}
+</ul>

@@ -1,5 +1,14 @@
 <div class="data-container">
-    <p>数量: {{.totalKVKV}}</p>
+    <p>数量: {{.totalKV}}</p>
+    <p>总页数: {{.totalPage}}</p>
+    
+    <div id="info-display" 
+         hx-get="/web/info/{{.BucketName}}" 
+         hx-trigger="load" 
+         hx-swap="innerHTML">
+         <em>正在加载元数据...</em>
+    </div>
+        
     <table class="data-table">
         <thead>
             <tr>
@@ -36,7 +45,7 @@
     </button>
 
     <div class="page-numbers">
-        {{range $i, $p := .numList}}
+        {{range $p := .numList}}
             <button hx-get="/web/setPage/{{$p}}" 
                     hx-target="#bucket-content"
                     hx-swap="innerHTML" 
@@ -46,22 +55,24 @@
         {{end}}
     </div>
 
-    <button hx-get="/web/setStep/25" 
-            hx-target="#bucket-content"
-            hx-swap="innerHTML"
-            class="{{if eq .PageSize 25}}active{{end}}">
-        25
-    </button>
-    <button hx-get="/web/setStep/50" 
-            hx-target="#bucket-content"
-            hx-swap="innerHTML"
-            class="{{if eq .PageSize 50}}active{{end}}">
-        50
-    </button>
-    <button hx-get="/web/setStep/80" 
-            hx-target="#bucket-content"
-            hx-swap="innerHTML"
-            class="{{if eq .PageSize 80}}active{{end}}">
-        80
-    </button>
+    <div class="step-button">
+        <button hx-get="/web/setStep/25" 
+                hx-target="#bucket-content"
+                hx-swap="innerHTML"
+                class="{{if eq .PageSize 25}}active{{end}}">
+            25
+        </button>
+        <button hx-get="/web/setStep/50" 
+                hx-target="#bucket-content"
+                hx-swap="innerHTML"
+                class="{{if eq .PageSize 50}}active{{end}}">
+            50
+        </button>
+        <button hx-get="/web/setStep/80" 
+                hx-target="#bucket-content"
+                hx-swap="innerHTML"
+                class="{{if eq .PageSize 80}}active{{end}}">
+            80
+        </button>
+    </div>
 </div>
