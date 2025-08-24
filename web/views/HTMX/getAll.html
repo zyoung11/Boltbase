@@ -23,24 +23,22 @@
 </div>
 
 <div class="pagination-controls">
-    <div class="page-nav">
-        <button hx-get="/web/getAll?bucketName={{.BucketName}}&page={{.PrevPage}}&pageSize={{.PageSize}}" 
-                hx-target="#bucket-content"
-                hx-swap="innerHTML" 
-                {{if not .HasPrev}}disabled{{end}}>
-            &laquo; 上一页
-        </button>
-        <button hx-get="/web/getAll?bucketName={{.BucketName}}&page={{.NextPage}}&pageSize={{.PageSize}}" 
-                hx-target="#bucket-content"
-                hx-swap="innerHTML" 
-                {{if not .HasNext}}disabled{{end}}>
-            下一页 &raquo;
-        </button>
-    </div>
+    <button hx-get="/web/changePage/left" 
+            hx-target="#bucket-content"
+            hx-swap="innerHTML" 
+            {{if not .HasPrev}}disabled{{end}}>
+        &laquo; 上一页
+    </button>
+    <button hx-get="/web/changePage/right" 
+            hx-target="#bucket-content"
+            hx-swap="innerHTML" 
+            {{if not .HasNext}}disabled{{end}}>
+        下一页 &raquo;
+    </button>
 
     <div class="page-numbers">
         {{range $i, $p := .PageNumbers}}
-            <button hx-get="/web/getAll?bucketName={{.BucketName}}&page={{$p}}&pageSize={{.PageSize}}" 
+            <button hx-get="/web/setPage/{{$p}}" 
                     hx-target="#bucket-content"
                     hx-swap="innerHTML" 
                     class="{{if eq $p $.CurrentPage}}active{{end}}">
@@ -49,24 +47,22 @@
         {{end}}
     </div>
 
-    <div class="page-size-buttons">
-        <button hx-get="/web/getAll?bucketName={{.BucketName}}&page=1&pageSize=25" 
-                hx-target="#bucket-content"
-                hx-swap="innerHTML"
-                class="{{if eq .PageSize 25}}active{{end}}">
-            25
-        </button>
-        <button hx-get="/web/getAll?bucketName={{.BucketName}}&page=1&pageSize=50" 
-                hx-target="#bucket-content"
-                hx-swap="innerHTML"
-                class="{{if eq .PageSize 50}}active{{end}}">
-            50
-        </button>
-        <button hx-get="/web/getAll?bucketName={{.BucketName}}&page=1&pageSize=80" 
-                hx-target="#bucket-content"
-                hx-swap="innerHTML"
-                class="{{if eq .PageSize 80}}active{{end}}">
-            80
-        </button>
-    </div>
+    <button hx-get="/web/setStep/25" 
+            hx-target="#bucket-content"
+            hx-swap="innerHTML"
+            class="{{if eq .PageSize 25}}active{{end}}">
+        25
+    </button>
+    <button hx-get="/web/setStep/50" 
+            hx-target="#bucket-content"
+            hx-swap="innerHTML"
+            class="{{if eq .PageSize 50}}active{{end}}">
+        50
+    </button>
+    <button hx-get="/web/setStep/80" 
+            hx-target="#bucket-content"
+            hx-swap="innerHTML"
+            class="{{if eq .PageSize 80}}active{{end}}">
+        80
+    </button>
 </div>

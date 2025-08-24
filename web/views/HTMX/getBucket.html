@@ -2,12 +2,18 @@
 <ul>
   {{range .BucketList}}
     <li>
-        <form hx-get="/web/getAll" hx-target="#bucket-content" hx-swap="innerHTML" >
+        <!-- <form hx-get="/web/getAll" hx-target="#bucket-content" hx-swap="innerHTML" >
             <input type="hidden" name="bucketName" value="{{.}}" />
             <button type="submit" class="bucket-btn">
                 {{.}}
             </button>
-        </form>
+        </form> -->
+        <button hx-get="/web/setBucket/{{.}}" 
+        hx-target="#bucket-content"
+        hx-swap="innerHTML" 
+        class="bucket-btn">
+    {{.}}
+</button>
     </li>
   {{else}}
     <li>没有任何 bucket</li>
