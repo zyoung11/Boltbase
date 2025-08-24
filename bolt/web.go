@@ -194,8 +194,11 @@ func sendPart(c *fiber.Ctx) error {
 		// })
 
 		return c.Status(200).Render("HTMX/getPart", fiber.Map{
-			"total": len(kv),
-			"kv":    kv,
+			"totalKV":     count,
+			"total":       len(kv),
+			"kv":          kv,
+			"totalPage":   int((count + userState.Step - 1) / userState.Step),
+			"currentPage": userState.Page + 1,
 		})
 	}
 
