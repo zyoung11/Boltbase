@@ -3,3 +3,4 @@ main
 go.sum
 temp/
 tmp/build-errors.log
+main.exe
