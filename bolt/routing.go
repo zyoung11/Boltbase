@@ -48,12 +48,10 @@ var Routes = []Route{
 	{Method: "GET", Path: "/", Handler: index},
 	{Method: "GET", Path: "/favicon.ico", Handler: favicon},
 	{Method: "GET", Path: "/web/getBuckets", Handler: getBuckets},
-	{Method: "GET", Path: "/web/getAll", Handler: getAll},
 	{Method: "GET", Path: "/web/setBucket/:bucketName", Handler: setBucket},
 	{Method: "GET", Path: "/web/setPage/:page", Handler: setPage},
 	{Method: "GET", Path: "/web/setStep/:step", Handler: setStep},
 	{Method: "GET", Path: "/web/changePage/:direction", Handler: changePage},
-	{Method: "GET", Path: "/web/debug", Handler: debug},
 	{Method: "GET", Path: "/web/info/:bucketName", Handler: getInfoWeb},
 }
 

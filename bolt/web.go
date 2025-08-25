@@ -18,7 +18,7 @@ type UserState struct {
 
 var userState = UserState{Step: 25}
 
-var buttonState = make([]string, 0, 9)
+var buttonState = make([]string, 9)
 
 func index(c *fiber.Ctx) error {
 	return c.Render("index", fiber.Map{
@@ -50,39 +50,6 @@ func getBuckets(c *fiber.Ctx) error {
 
 	return c.Status(200).Render("HTMX/getBucket", fiber.Map{
 		"BucketList": bucketList,
-	})
-}
-
-func getAll(c *fiber.Ctx) error {
-	bucketName := c.FormValue("bucketName")
-	if bucketName == metadataBucket || bucketName == adminBucket {
-		return c.SendStatus(403)
-	}
-
-	keyType, err := GetKV(db, metadataBucket, bucketName)
-	if err != nil {
-		return c.SendStatus(500)
-	}
-
-	if keyType == "seq" {
-		kv, err := ScanAllSeq(db, bucketName)
-		if err != nil {
-			return c.SendStatus(500)
-		}
-		return c.Status(200).Render("HTMX/getAll", fiber.Map{
-			"kv":    kv,
-			"Count": len(kv),
-		})
-	}
-
-	kv, err := ScanAll(db, bucketName)
-	if err != nil {
-		return c.SendStatus(500)
-	}
-
-	return c.Status(200).Render("HTMX/getAll", fiber.Map{
-		"kv":    kv,
-		"Count": len(kv),
 	})
 }
 
@@ -326,11 +293,7 @@ func updateButtons() error {
 	return nil
 }
 
-func debug(c *fiber.Ctx) error {
-	return c.Status(200).JSON(fiber.Map{
-		"bucket": userState.Bucket,
-		"start":  userState.Start,
-		"step":   userState.Step,
-		"page":   userState.Page,
-	})
-}
+// func showDetailsValue(c *fiber.Ctx) error {
+// 	key := c.Params("key")
+// 	GetKV(db, )
+// }
