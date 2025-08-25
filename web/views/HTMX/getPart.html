@@ -1,21 +1,19 @@
-<div class="data-container">
-    <div id="info-display"
-         hx-get="/web/info/{{.bucketName}}"
-         hx-trigger="load"
-         hx-swap="innerHTML"
-         class="info-bar">
-         <em>正在加载元数据...</em>
-    </div>
+<div id="info-display"
+     hx-get="/web/info/{{.bucketName}}"
+     hx-trigger="load"
+     hx-swap="innerHTML"
+     class="info-bar">
+     <em>正在加载元数据...</em>
+</div>
 
+<div class="scrollable-content">
     <p>数量: {{.totalKV}}</p>
-    <p>总页数: {{.totalPage}}</p>
-
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 45%;">Key</th>
-                <th style="width: 10%;"></th>
-                <th style="width: 45%;">Value</th>
+                <th style="width: 49%;">Key</th>
+                <th style="width: 2%;"></th>
+                <th style="width: 49%;">Value</th>
             </tr>
         </thead>
         <tbody>
