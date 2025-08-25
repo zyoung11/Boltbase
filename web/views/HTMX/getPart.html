@@ -1,30 +1,33 @@
 <div class="data-container">
-    <p>数量: {{.totalKV}}</p>
-    <p>总页数: {{.totalPage}}</p>
-    
-    <div id="info-display" 
-         hx-get="/web/info/{{.bucketName}}" 
-         hx-trigger="load" 
-         hx-swap="innerHTML">
+    <div id="info-display"
+         hx-get="/web/info/{{.bucketName}}"
+         hx-trigger="load"
+         hx-swap="innerHTML"
+         class="info-bar">
          <em>正在加载元数据...</em>
     </div>
-        
+
+    <p>数量: {{.totalKV}}</p>
+    <p>总页数: {{.totalPage}}</p>
+
     <table class="data-table">
         <thead>
             <tr>
-                <th>Key</th>
-                <th>Value</th>
+                <th style="width: 45%;">Key</th>
+                <th style="width: 10%;"></th>
+                <th style="width: 45%;">Value</th>
             </tr>
         </thead>
         <tbody>
             {{range $k, $v := .kv}}
                 <tr>
                     <td><p class="kv_td">{{$k}}</p></td>
+                    <td style="border: none;background-color:#1a1a1a;"></td>
                     <td><p class="kv_td">{{$v}}</p></td>
                 </tr>
             {{else}}
                 <tr>
-                    <td colspan="2" class="no-data">这个 bucket 里没有数据</td>
+                    <td colspan="3" class="no-data">这个 bucket 里没有数据</td>
                 </tr>
             {{end}}
         </tbody>
@@ -32,23 +35,24 @@
 </div>
 
 <div class="pagination-controls">
-    <button hx-get="/web/changePage/left" 
-            hx-target="#bucket-content"
-            hx-swap="innerHTML" >
-
-        &laquo; 上一页
-    </button>
-    <button hx-get="/web/changePage/right" 
-            hx-target="#bucket-content"
-            hx-swap="innerHTML" >
-        下一页 &raquo;
-    </button>
+    <div class="page-nav-left">
+        <button hx-get="/web/changePage/left"
+                hx-target="#bucket-content"
+                hx-swap="innerHTML" >
+            &laquo; 上一页
+        </button>
+        <button hx-get="/web/changePage/right"
+                hx-target="#bucket-content"
+                hx-swap="innerHTML" >
+            下一页 &raquo;
+        </button>
+    </div>
 
     <div class="page-numbers">
         {{range $p := .numList}}
-            <button hx-get="/web/setPage/{{$p}}" 
+            <button hx-get="/web/setPage/{{$p}}"
                     hx-target="#bucket-content"
-                    hx-swap="innerHTML" 
+                    hx-swap="innerHTML"
                     class="{{if eq $p $.CurrentPage}}active{{end}}">
                 {{$p}}
             </button>
@@ -56,19 +60,19 @@
     </div>
 
     <div class="step-button">
-        <button hx-get="/web/setStep/25" 
+        <button hx-get="/web/setStep/25"
                 hx-target="#bucket-content"
                 hx-swap="innerHTML"
                 class="{{if eq .PageSize 25}}active{{end}}">
             25
         </button>
-        <button hx-get="/web/setStep/50" 
+        <button hx-get="/web/setStep/50"
                 hx-target="#bucket-content"
                 hx-swap="innerHTML"
                 class="{{if eq .PageSize 50}}active{{end}}">
             50
         </button>
-        <button hx-get="/web/setStep/80" 
+        <button hx-get="/web/setStep/80"
                 hx-target="#bucket-content"
                 hx-swap="innerHTML"
                 class="{{if eq .PageSize 80}}active{{end}}">
