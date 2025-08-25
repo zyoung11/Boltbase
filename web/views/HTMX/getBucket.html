@@ -1,15 +1,19 @@
-<h1>Bucket列表</h1>
-<ul>
-  {{range .BucketList}}
-    <li hx-get="/web/setBucket/{{.}}" 
-        hx-target="#bucket-content"
-        hx-swap="innerHTML" >
-            {{.}}
-    </li>
-  {{else}}
-    <li>没有任何 bucket</li>
-  {{end}}
-</ul>
+<button id="toggle-btn"
+        hx-on:click="this.closest('.sidebar').classList.toggle('collapse')"
+        title="展开/收缩">
+  ☰
+</button>
 
+<div id="bucket-list">
+  <h1 style="display:inline-block;margin:0;">Bucket列表</h1>
 
-
+  <ul>
+    {{range .BucketList}}
+      <li hx-get="/web/setBucket/{{.}}"
+          hx-target="#bucket-content"
+          hx-swap="innerHTML">{{.}}</li>
+    {{else}}
+      <li>没有任何 bucket</li>
+    {{end}}
+  </ul>
+</div>
