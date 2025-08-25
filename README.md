@@ -75,16 +75,17 @@
  - `totalPage`（int类型： 返回一共有多少页）
  - `currentPage`（int类型： 返回当前在哪页）
  - `bucketName`（string类型：当前在使用的桶）
- - `web/views/HTMX/getPart.html`**返回**：
+ - `pageButtons`（切片类型：一共9个string类型的元素，从前到后对应9个按钮）
+ - `web/views/HTMX/getPart.html`
 
 ---
 
-#### **6. 选择页**
+#### **6. 选择页**（新版本）
 **HTTP方法**：GET 
 
 **URL**：`http://localhost:5090/web/setPage/{page}`
 
-**URL参数**：`page`（int类型）
+**URL参数**：`page`（string类型）
 
 **表单参数**：无
 
@@ -95,6 +96,7 @@
  - `totalPage`（int类型： 返回一共有多少页）
  - `currentPage`（int类型： 返回当前在哪页）
  - `bucketName`（string类型：当前在使用的桶）
+ - `pageButtons`（切片类型：一共9个string类型的元素，从前到后对应9个按钮）
  - `web/views/HTMX/getPart.html`
 
 ---
@@ -115,6 +117,7 @@
  - `totalPage`（int类型： 返回一共有多少页）
  - `currentPage`（int类型： 返回当前在哪页）
  - `bucketName`（string类型：当前在使用的桶）
+ - `pageButtons`（切片类型：一共9个string类型的元素，从前到后对应9个按钮）
  - `web/views/HTMX/getPart.html`
 
 ---
@@ -135,6 +138,7 @@
  - `totalPage`（int类型： 返回一共有多少页）
  - `currentPage`（int类型： 返回当前在哪页）
  - `bucketName`（string类型：当前在使用的桶）
+ - `pageButtons`（切片类型：一共9个string类型的元素，从前到后对应9个按钮）
  - `web/views/HTMX/getPart.html`
 
 ---

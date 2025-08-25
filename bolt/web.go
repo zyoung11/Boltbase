@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,6 +17,8 @@ type UserState struct {
 }
 
 var userState = UserState{Step: 25}
+
+var buttonState = make([]string, 0, 9)
 
 func index(c *fiber.Ctx) error {
 	return c.Render("index", fiber.Map{
@@ -96,35 +99,40 @@ func setBucket(c *fiber.Ctx) error {
 }
 
 func setPage(c *fiber.Ctx) error {
-	pageInt, err := c.ParamsInt("page")
+	page := c.Params("page")
+
+	if page == "....." {
+		next, err := strconv.Atoi(buttonState[2])
+		if err != nil {
+			return c.SendStatus(500)
+		}
+		pageJump := int((next + 1) / 2)
+		userState.Page = pageJump - 1
+		userState.Start = (pageJump - 1) * userState.Step
+		return sendPart(c)
+	}
+	if page == "......" {
+		pre, err := strconv.Atoi(buttonState[6])
+		if err != nil {
+			return c.SendStatus(500)
+		}
+		count, err := CountBucketKV(db, userState.Bucket)
+		if err != nil {
+			return c.SendStatus(500)
+		}
+		maxPage := int((count + userState.Step - 1) / userState.Step)
+		pageJump := int((maxPage + pre) / 2)
+		userState.Page = pageJump - 1
+		userState.Start = (pageJump - 1) * userState.Step
+		return sendPart(c)
+	}
+
+	pageJump, err := strconv.Atoi(page)
 	if err != nil {
 		return c.SendStatus(500)
 	}
-
-	if pageInt <= 0 {
-		return c.SendStatus(400)
-	}
-
-	pageInt--
-
-	count, err := CountBucketKV(db, userState.Bucket)
-	if err != nil {
-		return c.SendStatus(500)
-	}
-
-	var maxPage int = (count+userState.Step-1)/userState.Step - 1
-
-	if pageInt > maxPage {
-		pageInt = maxPage
-	}
-
-	if count < userState.Step {
-		pageInt = 0
-	}
-
-	userState.Page = pageInt
-	userState.Start = pageInt * userState.Step
-
+	userState.Page = pageJump - 1
+	userState.Start = (pageJump - 1) * userState.Step
 	return sendPart(c)
 }
 
@@ -184,6 +192,10 @@ func sendPart(c *fiber.Ctx) error {
 		num[i] = i + 1
 	}
 
+	if err := updateButtons(); err != nil {
+		return c.SendStatus(500)
+	}
+
 	if keyType == "seq" {
 		kv, err := PartScanSeq(db, userState.Bucket, userState.Start, userState.Step)
 		if err != nil {
@@ -198,6 +210,7 @@ func sendPart(c *fiber.Ctx) error {
 			"currentPage": userState.Page + 1,
 			"numList":     num,
 			"bucketName":  userState.Bucket,
+			"pageButtons": buttonState,
 		})
 	}
 
@@ -214,6 +227,7 @@ func sendPart(c *fiber.Ctx) error {
 		"currentPage": userState.Page + 1,
 		"numList":     num,
 		"bucketName":  userState.Bucket,
+		"pageButtons": buttonState,
 	})
 }
 
@@ -242,6 +256,74 @@ func getInfoWeb(c *fiber.Ctx) error {
 	return c.Status(200).Render("HTMX/getInfo", fiber.Map{
 		"Info": info,
 	})
+}
+
+func updateButtons() error {
+	count, err := CountBucketKV(db, userState.Bucket)
+	if err != nil {
+		return err
+	}
+
+	var maxPage int = (count + userState.Step - 1) / userState.Step
+
+	page := userState.Page + 1
+
+	if maxPage <= 9 {
+		for i := 1; i <= 9; i++ {
+			if i > maxPage {
+				buttonState[i-1] = ""
+			} else {
+				buttonState[i-1] = string(i)
+			}
+		}
+		return nil
+	}
+	if maxPage == 10 && page <= 5 {
+		for i := 1; i <= 7; i++ {
+			buttonState[i-1] = string(i)
+		}
+		buttonState[7] = "......"
+		buttonState[8] = "10"
+		return nil
+	}
+	if maxPage == 10 && page >= 6 {
+		buttonState[0] = "1"
+		buttonState[1] = "....."
+		for i := 3; i <= 9; i++ {
+			buttonState[i-1] = string(i + 1)
+		}
+		return nil
+	}
+	if maxPage >= 11 && page <= 5 {
+		for i := 1; i <= 7; i++ {
+			buttonState[i-1] = string(i)
+		}
+		buttonState[7] = "......"
+		buttonState[8] = string(maxPage)
+	}
+	if maxPage >= 11 && page >= maxPage-4 {
+		var j int = 6
+		buttonState[0] = "1"
+		buttonState[1] = "....."
+		for i := 3; i <= 9; i++ {
+			buttonState[i-1] = string(maxPage - j)
+			j--
+		}
+		return nil
+	}
+	if maxPage >= 11 && page > 5 && page < maxPage-4 {
+		buttonState[0] = "1"
+		buttonState[1] = "....."
+		buttonState[2] = string(page - 2)
+		buttonState[3] = string(page - 1)
+		buttonState[4] = string(page)
+		buttonState[5] = string(page + 1)
+		buttonState[6] = string(page + 2)
+		buttonState[7] = "......"
+		buttonState[8] = string(maxPage)
+		return nil
+	}
+	return nil
 }
 
 func debug(c *fiber.Ctx) error {
