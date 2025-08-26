@@ -240,14 +240,14 @@ func updateButtons() error {
 			if i > maxPage {
 				buttonState[i-1] = ""
 			} else {
-				buttonState[i-1] = string(i)
+				buttonState[i-1] = strconv.Itoa(i)
 			}
 		}
 		return nil
 	}
 	if maxPage == 10 && page <= 5 {
 		for i := 1; i <= 7; i++ {
-			buttonState[i-1] = string(i)
+			buttonState[i-1] = strconv.Itoa(i)
 		}
 		buttonState[7] = "......"
 		buttonState[8] = "10"
@@ -257,24 +257,24 @@ func updateButtons() error {
 		buttonState[0] = "1"
 		buttonState[1] = "....."
 		for i := 3; i <= 9; i++ {
-			buttonState[i-1] = string(i + 1)
+			buttonState[i-1] = strconv.Itoa(i + 1)
 		}
 		return nil
 	}
 	if maxPage >= 11 && page <= 5 {
 		for i := 1; i <= 7; i++ {
-			buttonState[i-1] = string(i)
+			buttonState[i-1] = strconv.Itoa(i)
 		}
 		buttonState[7] = "......"
-		buttonState[8] = string(maxPage)
-
+		buttonState[8] = strconv.Itoa(maxPage)
+		return nil
 	}
 	if maxPage >= 11 && page >= maxPage-4 {
 		var j int = 6
 		buttonState[0] = "1"
 		buttonState[1] = "....."
 		for i := 3; i <= 9; i++ {
-			buttonState[i-1] = string(maxPage - j)
+			buttonState[i-1] = strconv.Itoa(maxPage - j)
 			j--
 		}
 		return nil
@@ -282,19 +282,25 @@ func updateButtons() error {
 	if maxPage >= 11 && page > 5 && page < maxPage-4 {
 		buttonState[0] = "1"
 		buttonState[1] = "....."
-		buttonState[2] = string(page - 2)
-		buttonState[3] = string(page - 1)
-		buttonState[4] = string(page)
-		buttonState[5] = string(page + 1)
-		buttonState[6] = string(page + 2)
+		buttonState[2] = strconv.Itoa(page - 2)
+		buttonState[3] = strconv.Itoa(page - 1)
+		buttonState[4] = strconv.Itoa(page)
+		buttonState[5] = strconv.Itoa(page + 1)
+		buttonState[6] = strconv.Itoa(page + 2)
 		buttonState[7] = "......"
-		buttonState[8] = string(maxPage)
+		buttonState[8] = strconv.Itoa(maxPage)
 		return nil
 	}
 	return nil
 }
 
-// func showDetailsValue(c *fiber.Ctx) error {
+// func getDetail(c *fiber.Ctx) error {
 // 	key := c.Params("key")
-// 	GetKV(db, )
+// 	value, err := GetKV(db, userState.Bucket, key)
+// 	if err != nil {
+// 		return c.SendStatus(500)
+// 	}
+// 	return c.Status(200).Render("HTMX/getDetail", fiber.Map{
+// 		"value": value,
+// 	})
 // }
