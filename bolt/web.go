@@ -267,6 +267,7 @@ func updateButtons() error {
 		}
 		buttonState[7] = "......"
 		buttonState[8] = string(maxPage)
+
 	}
 	if maxPage >= 11 && page >= maxPage-4 {
 		var j int = 6

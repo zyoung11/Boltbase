@@ -46,15 +46,16 @@
     </div>
 
     <div class="page-numbers">
-        {{range $p := .numList}}
+        {{range $p := .pageButtons}}
             <button hx-get="/web/setPage/{{$p}}"
                     hx-target="#bucket-content"
                     hx-swap="innerHTML"
-                    class="{{if eq $p $.CurrentPage}}active{{end}}">
+                    >
                 {{$p}}
             </button>
         {{end}}
     </div>
+
 
     <div class="step-button">
         <button hx-get="/web/setStep/25"
