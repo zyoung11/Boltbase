@@ -327,8 +327,8 @@ func putKV(c *fiber.Ctx) error {
 				"error": err.Error(),
 			})
 		} else {
-			return c.Status(201).JSON(fiber.Map{
-				"warning": "key already exists",
+			return c.Status(500).JSON(fiber.Map{
+				"warning": errFooapiKeyExpire,
 			})
 		}
 	}
