@@ -47,12 +47,15 @@
 
     <div class="page-numbers">
         {{range $p := .pageButtons}}
+            {{ if $p }}
             <button hx-get="/web/setPage/{{$p}}"
                     hx-target="#bucket-content"
                     hx-swap="innerHTML transition:true"
                     >
                 {{$p}}
             </button>
+            {{ else }}
+            {{ end }}
         {{end}}
     </div>
 

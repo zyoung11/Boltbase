@@ -6,7 +6,6 @@
 
 <div id="bucket-list">
   <h1 style="display:inline-block;margin:0;">Bucket列表</h1>
-
   <ul>
     {{range .BucketList}}
       <li hx-get="/web/setBucket/{{.}}"
