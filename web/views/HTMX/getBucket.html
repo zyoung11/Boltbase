@@ -11,7 +11,7 @@
     {{range .BucketList}}
       <li hx-get="/web/setBucket/{{.}}"
           hx-target="#bucket-content"
-          hx-swap="innerHTML">{{.}}</li>
+          hx-swap="innerHTML transition:true">{{.}}</li>
     {{else}}
       <li>没有任何 bucket</li>
     {{end}}

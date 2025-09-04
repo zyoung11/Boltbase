@@ -163,7 +163,7 @@ li:hover {
     margin-top: 1.5rem;
     table-layout: fixed;
     margin: 0 auto;
-    overflow-y: auto;
+    overflow-y: scroll;
 }
 
 .data-table th, .data-table td {
@@ -267,8 +267,8 @@ li:hover {
 
 /* ----------------------滚动区域---------------------- */
 .scrollable-content {
-    height: 70%;
-    overflow-y: auto;
+    height: 90%;
+    overflow-y:scroll;
     padding: 0 2.5rem 1rem;
     box-sizing: border-box;
 }

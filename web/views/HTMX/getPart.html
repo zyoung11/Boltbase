@@ -17,7 +17,7 @@
         </thead>
         <tbody>
             {{range $k, $v := .kv}}
-                <tr>
+                <tr >
                     <td><p class="kv_td">{{$k}}</p></td>
                     <td style="border: none;background-color:#1a1a1a;"></td>
                     <td><p class="kv_td">{{$v}}</p></td>
@@ -49,7 +49,7 @@
         {{range $p := .pageButtons}}
             <button hx-get="/web/setPage/{{$p}}"
                     hx-target="#bucket-content"
-                    hx-swap="innerHTML"
+                    hx-swap="innerHTML transition:true"
                     >
                 {{$p}}
             </button>
