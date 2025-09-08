@@ -40,7 +40,10 @@ body {
 }
 
 #bucket-content{
-    height: 100%;
+    display: flex; 
+    flex-direction: column; 
+    height: 100%; 
+    overflow: hidden; 
 }
 
 h1, h2, h3 {
@@ -267,7 +270,7 @@ li:hover {
 
 /* ----------------------滚动区域---------------------- */
 .scrollable-content {
-    height: 90%;
+    flex-grow: 1;
     overflow-y:scroll;
     padding: 0 2.5rem 1rem;
     box-sizing: border-box;
