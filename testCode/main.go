@@ -11,11 +11,15 @@ import (
 )
 
 // =============================
-var WriteConcurrency int = 10
-var SendSum int = 1000
+var (
+	WriteConcurrency int = 10
+	SendSum          int = 1000
+)
 
-var ReadConcurrency int = 10
-var ReadSum int = 10000
+var (
+	ReadConcurrency int = 10
+	ReadSum         int = 10000
+)
 
 //
 //=============================
@@ -137,7 +141,6 @@ func createBucket(client *req.Client) {
 	if !resp2.IsSuccessState() {
 		fmt.Println("bad response status:", resp2.Status)
 	}
-
 }
 
 func setPassword(client *req.Client) {

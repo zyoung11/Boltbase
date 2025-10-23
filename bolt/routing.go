@@ -214,6 +214,26 @@ func renameBucket(c *fiber.Ctx) error {
 			"error": err.Error(),
 		})
 	}
+
+	value, err := GetKV(db, metadataBucket, oldName)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	if err := PutKV(db, metadataBucket, newName, value); err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	if err := DeleteKV(db, metadataBucket, oldName); err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
 	return c.SendStatus(204)
 }
 
