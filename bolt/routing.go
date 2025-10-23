@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/url"
-
 	"time"
 
 	bolt "github.com/boltdb/bolt"
@@ -14,7 +13,6 @@ import (
 )
 
 var Routes = []Route{
-
 	// bucket
 	{Method: "POST", Path: "/bucket/:bucketName/:keyType", Handler: createBucket},
 	{Method: "GET", Path: "/bucket", Handler: listBuckets},
@@ -556,7 +554,6 @@ func rangeScan(c *fiber.Ctx) error {
 		"total": len(kv),
 		"kv":    kv,
 	})
-
 }
 
 func scanAll(c *fiber.Ctx) error {

@@ -1,9 +1,10 @@
 package main
 
 import (
-	"Boltbase/bolt"
 	"embed"
 	"log"
+
+	"Boltbase/bolt"
 )
 
 //go:embed web

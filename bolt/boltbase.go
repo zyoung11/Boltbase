@@ -24,7 +24,6 @@ type Route struct {
 }
 
 func NewApp(name string, routes []Route, webFS embed.FS) *fiber.App {
-
 	viewSub, err := fs.Sub(webFS, "web/views")
 	if err != nil {
 		log.Fatal(err)

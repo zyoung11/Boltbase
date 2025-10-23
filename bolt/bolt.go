@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-
 	"net/url"
 	"os"
 	"time"
@@ -14,18 +13,22 @@ import (
 	bolt "github.com/boltdb/bolt"
 )
 
-var WebFS embed.FS
-var DB *bolt.DB
+var (
+	WebFS embed.FS
+	DB    *bolt.DB
+)
 
 // ---------------- Common Tools ----------------
 
-var ErrKeyNotFound = errors.New("key not found")
-var ErrBucketNotFound = errors.New("bucket not found")
+var (
+	ErrKeyNotFound    = errors.New("key not found")
+	ErrBucketNotFound = errors.New("bucket not found")
+)
 
 const (
-	//layoutMilli = "2006-01-02T15:04:05.000Z07:00"       // 23 字节
+	// layoutMilli = "2006-01-02T15:04:05.000Z07:00"       // 23 字节
 	layoutMicro = "2006-01-02T15:04:05.000000Z07:00" // 26 字节
-	//layoutNano  = "2006-01-02T15:04:05.000000000Z07:00" // 29 字节
+	// layoutNano  = "2006-01-02T15:04:05.000000000Z07:00" // 29 字节
 )
 
 func uint32ToPadded10BE(b []byte) string {
@@ -90,7 +93,7 @@ func OpenDB(path string) (*bolt.DB, error) {
 	// if err := validStr(path); err != nil {
 	// 	return nil, err
 	// }
-	db, err := bolt.Open(path, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	db, err := bolt.Open(path, 0o600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		return nil, err
 	}
