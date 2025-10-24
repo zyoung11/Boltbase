@@ -4,8 +4,6 @@ from typing import Optional, Any, Tuple
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
-from rich.text import Text
-
 
 def _get_status_color(status_code: int) -> str:
     if 200 <= status_code < 300:
