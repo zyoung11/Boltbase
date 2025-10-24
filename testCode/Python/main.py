@@ -126,7 +126,49 @@ if __name__ == "__main__":
     print("\n查看所以的桶：")
     print(get("http://localhost:5090/bucket"))
 
+    print("向string类型的桶插入数据_1：",
+          post("http://localhost:5090/kv",
+               body='''{
+                          "Bucket": "test-string",
+                          "Key": "test-key",
+                          "Value": "test-value-1",
+                          "Update": true
+                        }'''))
+    
+    print("\n读取test-string表的所以数据：")
+    print(get("http://localhost:5090/kv/all/test-string"))
 
-
-
+    print("向string类型的桶插入数据_2：",
+          post("http://localhost:5090/kv",
+               body='''{
+                          "Bucket": "test-string",
+                          "Key": "test-key",
+                          "Value": "test-value-2",
+                          "Update": true
+                        }'''))
         
+    print("\n读取test-string表的所以数据：")
+    print(get("http://localhost:5090/kv/all/test-string"))
+
+    print("向seq类型的桶插入数据：",
+          post("http://localhost:5090/kv",
+               body='''{
+                          "Bucket": "test-seq",
+                          "Key": "test-key",
+                          "Value": "test-value"
+                        }'''))
+    
+    print("\n读取test-seq表的所以数据：")
+    print(get("http://localhost:5090/kv/all/test-seq"))
+
+    print("向time类型的桶插入数据：",
+          post("http://localhost:5090/kv",
+               body='''{
+                          "Bucket": "test-time",
+                          "Key": "test-key",
+                          "Value": "test-value"
+                        }'''))
+    
+    print("\n读取test-time表的所以数据：")
+    print(get("http://localhost:5090/kv/all/test-seq"))
+    
