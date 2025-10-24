@@ -1,80 +1,102 @@
 import requests
+import json
 from typing import Dict, Optional, Any, Tuple
 
-def post(url: str, body: Optional[str] = None, key: Optional[str] = None, should_fail: bool = False) -> Dict:
+def run_test(description: str, response: Tuple[str, Any]):
+    status, content = response
+    print(f"""
+{description}: {status}
+--------------------------------------------------
+Response:
+""", end="")
+    try:
+        # 尝试将内容作为JSON格式化输出
+        print(json.dumps(content, indent=4, ensure_ascii=False))
+    except (TypeError, json.JSONDecodeError):
+        # 如果内容不是有效的JSON（例如，只是一个字符串），则直接打印
+        print(content)
+    print("--------------------------------------------------\n")
+
+def post(url: str, body: Optional[str] = None, key: Optional[str] = None, should_fail: bool = False) -> Tuple[str, Any]:
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
     kwargs = {"headers": headers, "timeout": 10}
     if body:
         kwargs["data"] = body
-    resp = requests.post(url, **kwargs)
-    if 200 <= resp.status_code < 300:
-        if should_fail:
-            print("\n❌")
-            raise RuntimeError(f"期望失败但成功: {resp.status_code}")
+    try:
+        resp = requests.post(url, **kwargs)
+        if 200 <= resp.status_code < 300:
+            if should_fail:
+                return ("❌", f"期望失败但成功: {resp.status_code}")
+            else:
+                try:
+                    return ("✅", resp.json())
+                except ValueError:
+                    return ("✅", {"response": resp.text})
         else:
-            print("\n✅")
-            try:
-                return resp.json()
-            except ValueError:
-                return {"response": resp.text}
-    else:
+            if should_fail:
+                return ("✅", {"error": f"状态码异常: {resp.status_code}"})
+            else:
+                return ("❌", f"状态码异常: {resp.status_code}")
+    except Exception as e:
         if should_fail:
-            print("\n✅")
-            return {"error": f"状态码异常: {resp.status_code}"}
+            return ("✅", str(e))
         else:
-            print("\n❌")
-            raise RuntimeError(f"状态码异常: {resp.status_code}")
+            return ("❌", str(e))
 
-def delete(url: str, key: Optional[str] = None, should_fail: bool = False) -> Dict:
+def delete(url: str, key: Optional[str] = None, should_fail: bool = False) -> Tuple[str, Any]:
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
-    resp = requests.delete(url, headers=headers, timeout=10)
-    if 200 <= resp.status_code < 300:
-        if should_fail:
-            print("\n❌")
-            raise RuntimeError(f"期望失败但成功: {resp.status_code}")
+    try:
+        resp = requests.delete(url, headers=headers, timeout=10)
+        if 200 <= resp.status_code < 300:
+            if should_fail:
+                return ("❌", f"期望失败但成功: {resp.status_code}")
+            else:
+                try:
+                    return ("✅", resp.json())
+                except ValueError:
+                    return ("✅", {"response": resp.text})
         else:
-            print("\n✅")
-            try:
-                return resp.json()
-            except ValueError:
-                return {"response": resp.text}
-    else:
+            if should_fail:
+                return ("✅", {"error": f"状态码异常: {resp.status_code}"})
+            else:
+                return ("❌", f"状态码异常: {resp.status_code}")
+    except Exception as e:
         if should_fail:
-            print("\n✅")
-            return {"error": f"状态码异常: {resp.status_code}"}
+            return ("✅", str(e))
         else:
-            print("\n❌")
-            raise RuntimeError(f"状态码异常: {resp.status_code}")
+            return ("❌", str(e))
 
-def put(url: str, body: Optional[str] = None, key: Optional[str] = None, should_fail: bool = False) -> Dict:
+def put(url: str, body: Optional[str] = None, key: Optional[str] = None, should_fail: bool = False) -> Tuple[str, Any]:
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
     kwargs = {"headers": headers, "timeout": 10}
     if body:
         kwargs["data"] = body
-    resp = requests.put(url, **kwargs)
-    if 200 <= resp.status_code < 300:
-        if should_fail:
-            print("\n❌")
-            raise RuntimeError(f"期望失败但成功: {resp.status_code}")
+    try:
+        resp = requests.put(url, **kwargs)
+        if 200 <= resp.status_code < 300:
+            if should_fail:
+                return ("❌", f"期望失败但成功: {resp.status_code}")
+            else:
+                try:
+                    return ("✅", resp.json())
+                except ValueError:
+                    return ("✅", {"response": resp.text})
         else:
-            print("\n✅")
-            try:
-                return resp.json()
-            except ValueError:
-                return {"response": resp.text}
-    else:
+            if should_fail:
+                return ("✅", {"error": f"状态码异常: {resp.status_code}"})
+            else:
+                return ("❌", f"状态码异常: {resp.status_code}")
+    except Exception as e:
         if should_fail:
-            print("\n✅")
-            return {"error": f"状态码异常: {resp.status_code}"}
+            return ("✅", str(e))
         else:
-            print("\n❌")
-            raise RuntimeError(f"状态码异常: {resp.status_code}")
+            return ("❌", str(e))
 
 def get(url: str, key: Optional[str] = None, extract: Optional[str] = None, should_fail: bool = False) -> Tuple[str, Any]:
     headers = {"Content-Type": "application/json"}
@@ -114,114 +136,74 @@ def get(url: str, key: Optional[str] = None, extract: Optional[str] = None, shou
             return ("❌", str(e))
 
 if __name__ == "__main__":
+    run_test("创建string类型的桶", post("http://localhost:5090/bucket/test-string/string"))
+    run_test("创建seq类型的桶", post("http://localhost:5090/bucket/test-seq/seq"))
+    run_test("创建time类型的桶", post("http://localhost:5090/bucket/test-time/time"))
+    run_test("创建test桶", post("http://localhost:5090/bucket/test/seq"))
 
-    # 例子
-    # print("POST:", 
-    #       post("https://httpbin.org/post",
-    #            body='{"name":"Alice","age":18}',
-    #            key="sk-1234567890abcdef"))
+    run_test("查看所有的桶", get("http://localhost:5090/bucket"))
 
-    # print("DELETE:", 
-    #       delete("https://httpbin.org/delete",
-    #              key="sk-123456789f"))
-    
-    # print("PUT:",
-    #       put("https://httpbin.org/put",
-    #           body='{"name":"Charlie","age":25}',
-    #           key="sk-1234567890abcdef"))
+    run_test("修改桶名", put("http://localhost:5090/bucket/test/test-new"))
 
-    # status, content = get("http://localhost:5090",
-    #                       key="sk-2312312312f",
-    #                       extract="token")
-    # print(f"GET: {status}, 内容: {content}")
-    
-    print("创建string类型的桶：",
-          post("http://localhost:5090/bucket/test-string/string"))
+    run_test("再次查看所有的桶", get("http://localhost:5090/bucket"))
 
-    print("创建seq类型的桶：",
-          post("http://localhost:5090/bucket/test-seq/seq"))
+    run_test("获取桶的类型", get("http://localhost:5090/bucket/type"))
 
-    print("创建time类型的桶：",
-          post("http://localhost:5090/bucket/test-time/time"))
+    run_test("删除桶", delete("http://localhost:5090/bucket/test-new"))
 
-    print("创建test桶：",
-          post("http://localhost:5090/bucket/test/seq"))
+    run_test("最后一次查看所有的桶", get("http://localhost:5090/bucket"))
 
-    print("\n查看所以的桶：")
-    print(get("http://localhost:5090/bucket"))
+    run_test("向string类型的桶插入数据_1",
+             post("http://localhost:5090/kv",
+                  body='''{
+                             "Bucket": "test-string",
+                             "Key": "test-key",
+                             "Value": "test-value-1",
+                             "Update": true
+                           }'''))
 
-    print("修改桶名：",
-          put("http://localhost:5090/bucket/test/test-new"))
+    run_test("读取test-string表的所以数据_1", get("http://localhost:5090/kv/all/test-string"))
 
-    print("\n查看所以的桶：")
-    print(get("http://localhost:5090/bucket"))
+    run_test("向string类型的桶插入数据_2",
+             post("http://localhost:5090/kv",
+                  body='''{
+                             "Bucket": "test-string",
+                             "Key": "test-key",
+                             "Value": "test-value-2",
+                             "Update": true
+                           }'''))
 
-    print("\n获取桶的类型：")
-    print(get("http://localhost:5090/bucket/type"))
+    run_test("读取test-string表的所以数据_2", get("http://localhost:5090/kv/all/test-string"))
 
-    print("删除桶：",
-          delete("http://localhost:5090/bucket/test-new"))
+    run_test("向string类型的桶插入冲突数据_3",
+             post("http://localhost:5090/kv",
+                  should_fail=True,
+                  body='''{
+                             "Bucket": "test-string",
+                             "Key": "test-key",
+                             "Value": "test-value-3",
+                             "Update": false
+                           }'''))
 
-    print("\n查看所以的桶：")
-    print(get("http://localhost:5090/bucket"))
+    run_test("读取test-string表的所以数据_3", get("http://localhost:5090/kv/all/test-string"))
 
-    print("向string类型的桶插入数据_1：",
-          post("http://localhost:5090/kv",
-               body='''{
-                          "Bucket": "test-string",
-                          "Key": "test-key",
-                          "Value": "test-value-1",
-                          "Update": true
-                        }'''))
-    
-    print("\n读取test-string表的所以数据：")
-    print(get("http://localhost:5090/kv/all/test-string"))
+    run_test("向seq类型的桶插入数据",
+             post("http://localhost:5090/kv",
+                  body='''{
+                             "Bucket": "test-seq",
+                             "Key": "test-key",
+                             "Value": "test-value"
+                           }'''))
 
-    print("向string类型的桶插入数据_2：",
-          post("http://localhost:5090/kv",
-               body='''{
-                          "Bucket": "test-string",
-                          "Key": "test-key",
-                          "Value": "test-value-2",
-                          "Update": true
-                        }'''))
-        
-    print("\n读取test-string表的所以数据：")
-    print(get("http://localhost:5090/kv/all/test-string"))
+    run_test("读取test-seq表的所以数据", get("http://localhost:5090/kv/all/test-seq"))
 
-    print("向string类型的桶插入冲突数据_3：",
-          post("http://localhost:5090/kv",
-               should_fail=True,
-               body='''{
-                          "Bucket": "test-string",
-                          "Key": "test-key",
-                          "Value": "test-value-3",
-                          "Update": false
-                        }'''))
-        
-    print("\n读取test-string表的所以数据：")
-    print(get("http://localhost:5090/kv/all/test-string"))
+    run_test("向time类型的桶插入数据",
+             post("http://localhost:5090/kv",
+                  body='''{
+                             "Bucket": "test-time",
+                             "Key": "test-key",
+                             "Value": "test-value"
+                           }'''))
 
-
-    print("向seq类型的桶插入数据：",
-          post("http://localhost:5090/kv",
-               body='''{
-                          "Bucket": "test-seq",
-                          "Key": "test-key",
-                          "Value": "test-value"
-                        }'''))
-    
-    print("\n读取test-seq表的所以数据：")
-    print(get("http://localhost:5090/kv/all/test-seq"))
-
-    print("向time类型的桶插入数据：",
-          post("http://localhost:5090/kv",
-               body='''{
-                          "Bucket": "test-time",
-                          "Key": "test-key",
-                          "Value": "test-value"
-                        }'''))
-    
-    print("\n读取test-time表的所以数据：")
-    print(get("http://localhost:5090/kv/all/test-seq"))
+    run_test("读取test-time表的所以数据", get("http://localhost:5090/kv/all/test-time"))
     
