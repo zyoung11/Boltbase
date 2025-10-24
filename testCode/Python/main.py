@@ -1,23 +1,47 @@
 import requests
 import json
-from typing import Dict, Optional, Any, Tuple
+from typing import Optional, Any, Tuple
+from rich.console import Console
+from rich.panel import Panel
+from rich.syntax import Syntax
+from rich.text import Text
 
-def run_test(description: str, response: Tuple[str, Any]):
-    status, content = response
-    print(f"""
-{description}: {status}
---------------------------------------------------
-Response:
-""", end="")
-    try:
-        # 尝试将内容作为JSON格式化输出
-        print(json.dumps(content, indent=4, ensure_ascii=False))
-    except (TypeError, json.JSONDecodeError):
-        # 如果内容不是有效的JSON（例如，只是一个字符串），则直接打印
-        print(content)
-    print("--------------------------------------------------\n")
 
-def post(url: str, body: Optional[str] = None, key: Optional[str] = None, should_fail: bool = False) -> Tuple[str, Any]:
+def _get_status_color(status_code: int) -> str:
+    if 200 <= status_code < 300:
+        return "green"
+    if 400 <= status_code < 500:
+        return "yellow"
+    if 500 <= status_code < 600:
+        return "red"
+    return "white"
+
+
+def run_test(description: str, response: Tuple[str, Any, int]):
+    console = Console()
+    status, content, status_code = response
+    color = _get_status_color(status_code)
+
+    title = f"""{description}: {status} [bold {color}]HTTP {status_code}[/bold {color}]"""
+
+    if isinstance(content, dict) or isinstance(content, list):
+        json_str = json.dumps(content, indent=4, ensure_ascii=False)
+        body = Syntax(json_str, "json", theme="dracula", line_numbers=True)
+    else:
+        body = str(content)
+
+    console.print(
+        Panel(
+            body,
+            title=title,
+            border_style="blue",
+            expand=False,
+        )
+    )
+
+
+def post(url: str, body: Optional[str] = None, key: Optional[str] = None,
+         should_fail: bool = False) -> Tuple[str, Any, int]:
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
@@ -26,51 +50,50 @@ def post(url: str, body: Optional[str] = None, key: Optional[str] = None, should
         kwargs["data"] = body
     try:
         resp = requests.post(url, **kwargs)
-        if 200 <= resp.status_code < 300:
+        status_code = resp.status_code
+        if 200 <= status_code < 300:
             if should_fail:
-                return ("❌", f"期望失败但成功: {resp.status_code}")
+                return "❌", f"期望失败但成功: {status_code}", status_code
             else:
                 try:
-                    return ("✅", resp.json())
+                    return "✅", resp.json(), status_code
                 except ValueError:
-                    return ("✅", {"response": resp.text})
+                    return "✅", {"response": resp.text}, status_code
         else:
             if should_fail:
-                return ("✅", {"error": f"状态码异常: {resp.status_code}"})
+                return "✅", {"error": f"状态码异常: {status_code}"}, status_code
             else:
-                return ("❌", f"状态码异常: {resp.status_code}")
+                return "❌", f"状态码异常: {status_code}", status_code
     except Exception as e:
-        if should_fail:
-            return ("✅", str(e))
-        else:
-            return ("❌", str(e))
+        return ("❌" if not should_fail else "✅"), str(e), 999
 
-def delete(url: str, key: Optional[str] = None, should_fail: bool = False) -> Tuple[str, Any]:
+
+def delete(url: str, key: Optional[str] = None, should_fail: bool = False) -> Tuple[str, Any, int]:
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
     try:
         resp = requests.delete(url, headers=headers, timeout=10)
-        if 200 <= resp.status_code < 300:
+        status_code = resp.status_code
+        if 200 <= status_code < 300:
             if should_fail:
-                return ("❌", f"期望失败但成功: {resp.status_code}")
+                return "❌", f"期望失败但成功: {status_code}", status_code
             else:
                 try:
-                    return ("✅", resp.json())
+                    return "✅", resp.json(), status_code
                 except ValueError:
-                    return ("✅", {"response": resp.text})
+                    return "✅", {"response": resp.text}, status_code
         else:
             if should_fail:
-                return ("✅", {"error": f"状态码异常: {resp.status_code}"})
+                return "✅", {"error": f"状态码异常: {status_code}"}, status_code
             else:
-                return ("❌", f"状态码异常: {resp.status_code}")
+                return "❌", f"状态码异常: {status_code}", status_code
     except Exception as e:
-        if should_fail:
-            return ("✅", str(e))
-        else:
-            return ("❌", str(e))
+        return ("❌" if not should_fail else "✅"), str(e), 999
 
-def put(url: str, body: Optional[str] = None, key: Optional[str] = None, should_fail: bool = False) -> Tuple[str, Any]:
+
+def put(url: str, body: Optional[str] = None, key: Optional[str] = None, should_fail: bool = False) -> Tuple[
+    str, Any, int]:
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
@@ -79,61 +102,55 @@ def put(url: str, body: Optional[str] = None, key: Optional[str] = None, should_
         kwargs["data"] = body
     try:
         resp = requests.put(url, **kwargs)
-        if 200 <= resp.status_code < 300:
+        status_code = resp.status_code
+        if 200 <= status_code < 300:
             if should_fail:
-                return ("❌", f"期望失败但成功: {resp.status_code}")
+                return "❌", f"期望失败但成功: {status_code}", status_code
             else:
                 try:
-                    return ("✅", resp.json())
+                    return "✅", resp.json(), status_code
                 except ValueError:
-                    return ("✅", {"response": resp.text})
+                    return "✅", {"response": resp.text}, status_code
         else:
             if should_fail:
-                return ("✅", {"error": f"状态码异常: {resp.status_code}"})
+                return "✅", {"error": f"状态码异常: {status_code}"}, status_code
             else:
-                return ("❌", f"状态码异常: {resp.status_code}")
+                return "❌", f"状态码异常: {status_code}", status_code
     except Exception as e:
-        if should_fail:
-            return ("✅", str(e))
-        else:
-            return ("❌", str(e))
+        return ("❌" if not should_fail else "✅"), str(e), 999
 
-def get(url: str, key: Optional[str] = None, extract: Optional[str] = None, should_fail: bool = False) -> Tuple[str, Any]:
+
+def get(url: str, key: Optional[str] = None, extract: Optional[str] = None,
+        should_fail: bool = False) -> Tuple[str, Any, int]:
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
     try:
         resp = requests.get(url, headers=headers, timeout=10)
-        if not (200 <= resp.status_code < 300):
+        status_code = resp.status_code
+        if not (200 <= status_code < 300):
             if should_fail:
-                return ("✅", f"状态码异常: {resp.status_code}")
+                return "✅", f"状态码异常: {status_code}", status_code
             else:
-                return ("❌", f"状态码异常: {resp.status_code}")
+                return "❌", f"状态码异常: {status_code}", status_code
         try:
             json_data = resp.json()
         except ValueError:
-            if should_fail:
-                return ("✅", "响应不是有效的JSON格式")
-            else:
-                return ("❌", "响应不是有效的JSON格式")
+            return ("❌" if not should_fail else "✅"), "响应不是有效的JSON格式", status_code
+
         if extract:
             if extract not in json_data:
-                if should_fail:
-                    return ("✅", f"JSON中找不到属性: {extract}")
-                else:
-                    return ("❌", f"JSON中找不到属性: {extract}")
+                return ("❌" if not should_fail else "✅"), f"JSON中找不到属性: {extract}", status_code
             result = json_data[extract]
         else:
             result = json_data
+
         if should_fail:
-            return ("❌", "期望失败但成功")
+            return "❌", "期望失败但成功", status_code
         else:
-            return ("✅", result)
+            return "✅", result, status_code
     except Exception as e:
-        if should_fail:
-            return ("✅", str(e))
-        else:
-            return ("❌", str(e))
+        return ("❌" if not should_fail else "✅"), str(e), 999
 
 if __name__ == "__main__":
     run_test("创建string类型的桶", post("http://localhost:5090/bucket/test-string/string"))
@@ -191,7 +208,6 @@ if __name__ == "__main__":
              post("http://localhost:5090/kv",
                   body='''{
                              "Bucket": "test-seq",
-                             "Key": "test-key",
                              "Value": "test-value"
                            }'''))
 
@@ -201,7 +217,6 @@ if __name__ == "__main__":
              post("http://localhost:5090/kv",
                   body='''{
                              "Bucket": "test-time",
-                             "Key": "test-key",
                              "Value": "test-value"
                            }'''))
 
