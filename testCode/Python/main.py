@@ -24,7 +24,7 @@ def run_test(description: str, response: Tuple[str, Any, int]):
 
     if isinstance(content, dict) or isinstance(content, list):
         json_str = json.dumps(content, indent=4, ensure_ascii=False)
-        body = Syntax(json_str, "json", theme="dracula", line_numbers=True)
+        body = Syntax(json_str, "json", theme="dracula", line_numbers=True, background_color="default")
     else:
         body = str(content)
 
@@ -33,9 +33,10 @@ def run_test(description: str, response: Tuple[str, Any, int]):
             body,
             title=title,
             border_style="blue",
-            expand=False,
+            expand=True,
         )
     )
+    console.print()
 
 
 def post(url: str, body: Optional[str] = None, key: Optional[str] = None,
