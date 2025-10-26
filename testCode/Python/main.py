@@ -15,18 +15,22 @@ def _get_status_color(status_code: int) -> str:
     return "white"
 
 
-def run_test(description: str, response: Tuple[str, Any, int]):
+def run_test(description: str, response: Tuple[str, Any, int], extract: Optional[str] = None) -> Any:
     console = Console()
     status, content, status_code = response
     color = _get_status_color(status_code)
 
     title = f"""{description}: {status} [bold {color}]HTTP {status_code}[/bold {color}]"""
 
-    if isinstance(content, dict) or isinstance(content, list):
-        json_str = json.dumps(content, indent=4, ensure_ascii=False)
+    display_content = content
+    if extract is None and isinstance(content, dict) and 'buckets' in content:
+        display_content = content['buckets']
+
+    if isinstance(display_content, dict) or isinstance(display_content, list):
+        json_str = json.dumps(display_content, indent=4, ensure_ascii=False)
         body = Syntax(json_str, "json", theme="dracula", line_numbers=True, background_color="default")
     else:
-        body = str(content)
+        body = str(display_content)
 
     console.print(
         Panel(
@@ -37,6 +41,14 @@ def run_test(description: str, response: Tuple[str, Any, int]):
         )
     )
     console.print()
+
+    if extract:
+        if isinstance(content, dict) and extract in content:
+            return content[extract]
+        else:
+            console.print(f"[bold red]Warning:[/bold red] Could not extract '{extract}' from response.")
+            return None
+    return None
 
 
 def post(url: str, body: Optional[str] = None, key: Optional[str] = None,
@@ -119,8 +131,7 @@ def put(url: str, body: Optional[str] = None, key: Optional[str] = None, should_
         return ("❌" if not should_fail else "✅"), str(e), 999
 
 
-def get(url: str, key: Optional[str] = None, extract: Optional[str] = None,
-        should_fail: bool = False) -> Tuple[str, Any, int]:
+def get(url: str, key: Optional[str] = None, should_fail: bool = False) -> Tuple[str, Any, int]:
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
@@ -137,17 +148,10 @@ def get(url: str, key: Optional[str] = None, extract: Optional[str] = None,
         except ValueError:
             return ("❌" if not should_fail else "✅"), "响应不是有效的JSON格式", status_code
 
-        if extract:
-            if extract not in json_data:
-                return ("❌" if not should_fail else "✅"), f"JSON中找不到属性: {extract}", status_code
-            result = json_data[extract]
-        else:
-            result = json_data
-
         if should_fail:
             return "❌", "期望失败但成功", status_code
         else:
-            return "✅", result, status_code
+            return "✅", json_data, status_code
     except Exception as e:
         return ("❌" if not should_fail else "✅"), str(e), 999
 
@@ -220,4 +224,3 @@ if __name__ == "__main__":
                            }'''))
 
     run_test("读取test-time表的所以数据", get("http://localhost:5090/kv/all/test-time"))
-    
