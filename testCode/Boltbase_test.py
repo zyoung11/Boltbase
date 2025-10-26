@@ -223,4 +223,5 @@ if __name__ == "__main__":
                              "Value": "test-value"
                            }'''))
 
-    run_test("读取test-time表的所以数据", get("http://localhost:5090/kv/all/test-time"))
+    total = run_test("读取test-time表的所以数据", get("http://localhost:5090/kv/all/test-time"), extract="total")
+    print(f"total={total}\n")
