@@ -207,17 +207,19 @@ func PutKV(db *bolt.DB, bucket, key, value string) error {
 
 // ---------------- 7. Sequential Auto-Increment Insert ----------------
 
-func PutSeq(db *bolt.DB, bucket, value string) error {
+func PutSeq(db *bolt.DB, bucket, value string) (uint64, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return err
 	// }
-	return db.Update(func(tx *bolt.Tx) error {
+	var id uint64
+	err := db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
 		}
 		b.FillPercent = 0.95
-		id, err := b.NextSequence()
+		var err error
+		id, err = b.NextSequence()
 		if err != nil {
 			return err
 		}
@@ -225,23 +227,32 @@ func PutSeq(db *bolt.DB, bucket, value string) error {
 		binary.BigEndian.PutUint32(key, uint32(id))
 		return b.Put(key, []byte(value))
 	})
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
 }
 
 // ---------------- 8. Time Auto-Increment Insert ----------------
 
-func PutTime(db *bolt.DB, bucket, value string) error {
+func PutTime(db *bolt.DB, bucket, value string) (string, error) {
 	// if err := validStr(bucket); err != nil {
 	// 	return err
 	// }
-	return db.Update(func(tx *bolt.Tx) error {
+	var key []byte
+	err := db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
 			return ErrBucketNotFound
 		}
 		b.FillPercent = 0.95
-		key := []byte(time.Now().UTC().Format(layoutMicro))
+		key = []byte(time.Now().UTC().Format(layoutMicro))
 		return b.Put(key, []byte(value))
 	})
+	if err != nil {
+		return "", err
+	}
+	return string(key), nil
 }
 
 // ---------------- 9. Get Value ----------------

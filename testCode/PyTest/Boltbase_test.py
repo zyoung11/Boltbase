@@ -69,6 +69,16 @@ post("http://localhost:5090/kv",
 
 run_test("读取test-time表的所以数据", get("http://localhost:5090/kv/all/test-time"))
 
+
+run_test("向string类型的桶插入数据",
+post("http://localhost:5090/kv",
+  body='''{
+             "Bucket": "test-string",
+             "Key": "test-key-test",
+             "Value": "test-value-test",
+             "Update": true
+           }'''))
+
 run_test("向seq类型的桶插入数据",
 post("http://localhost:5090/kv",
   body='''{
@@ -76,8 +86,22 @@ post("http://localhost:5090/kv",
              "Value": "test-value-test"
            }'''))
 
-run_test("读取test-seq表的所以数据", get("http://localhost:5090/kv/all/test-seq"))
+run_test("向time类型的桶插入数据",
+post("http://localhost:5090/kv",
+  body='''{
+             "Bucket": "test-time",
+             "Value": "test-value-test"
+           }'''))
 
+run_test("读取test-string表的所以数据", get("http://localhost:5090/kv/all/test-string"))
+run_test("读取test-seq表的所以数据", get("http://localhost:5090/kv/all/test-seq"))
+run_test("读取test-time表的所以数据", get("http://localhost:5090/kv/all/test-time"))
+
+run_test("删除test-string表的一个数据", delete("http://localhost:5090/kv/test-string/test-key-test"))
 run_test("删除test-seq表的一个数据", delete("http://localhost:5090/kv/test-seq/2"))
+# run_test("删除test-time表的一个数据", delete("http://localhost:5090/kv/test-time/2"))
 
+run_test("读取test-string表的所以数据", get("http://localhost:5090/kv/all/test-string"))
 run_test("读取test-seq表的所以数据", get("http://localhost:5090/kv/all/test-seq"))
+run_test("读取test-time表的所以数据", get("http://localhost:5090/kv/all/test-time"))
+

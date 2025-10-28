@@ -352,30 +352,40 @@ func putKV(c *fiber.Ctx) error {
 	}
 
 	if keyType == "seq" {
-		if err := PutSeq(db, data.Bucket, data.Value); err != nil {
+		key, err := PutSeq(db, data.Bucket, data.Value)
+		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
 			})
 		}
 		if data.Key != "" {
 			return c.Status(201).JSON(fiber.Map{
+				"key":     key,
 				"warning": "The bucket is in 'seq' mode, the 'key' in the request body is ignored and the key is generated automatically by sequence.",
 			})
 		}
+		return c.Status(201).JSON(fiber.Map{
+			"key": key,
+		})
 
 	}
 
 	if keyType == "time" {
-		if err := PutTime(db, data.Bucket, data.Value); err != nil {
+		key, err := PutTime(db, data.Bucket, data.Value)
+		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": err.Error(),
 			})
 		}
 		if data.Key != "" {
 			return c.Status(201).JSON(fiber.Map{
+				"key":     key,
 				"warning": "The bucket is in 'time' mode, the 'key' in the request body is ignored and the key is generated automatically by time.",
 			})
 		}
+		return c.Status(201).JSON(fiber.Map{
+			"key": key,
+		})
 	}
 
 	return c.SendStatus(201)
