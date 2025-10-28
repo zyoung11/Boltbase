@@ -537,6 +537,22 @@ func DeleteKV(db *bolt.DB, bucket, key string) error {
 	})
 }
 
+func DeleteKVSeq(db *bolt.DB, bucket string, key uint32) error {
+	k := make([]byte, 4)
+	binary.BigEndian.PutUint32(k, key)
+
+	return db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return ErrBucketNotFound
+		}
+		if b.Get([]byte(k)) == nil {
+			return ErrKeyNotFound
+		}
+		return b.Delete([]byte(k))
+	})
+}
+
 // ---------------- 16. Export Database ----------------
 
 func ExportDB(db *bolt.DB, filePath string) error {

@@ -801,6 +801,28 @@ func deleteKV(c *fiber.Ctx) error {
 		}
 	}
 
+	keyType, err := GetKV(db, metadataBucket, bucketName)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	if keyType == "seq" {
+		key, err := c.ParamsInt("key")
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		if err := DeleteKVSeq(db, bucketName, uint32(key)); err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		return c.SendStatus(204)
+	}
+
 	if err := DeleteKV(db, bucketName, c.Params("key")); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
