@@ -213,22 +213,41 @@ Boltbase 的认证系统设计得非常灵活，以适应不同场景的需求�
 
 #### **4.1** `POST /kv`
 插入或更新一个键值对。
+
+> [!NOTE]
+>
+> - 在 keyType 为 'seq' 或 'time' 时，请求体的**"key"**可以忽略。
+> - 在 keyType 为 'string' 时有效。**"Update"**为**true**更新或插入，为**false**仅当 key 不存在时插入
+> - 在 keyType 为 'string' 时不返回**"key"**
+
 - **认证**: 需要
+
 - **请求体** (`application/json`):
   ```json
   {
     "Bucket": "your_bucket_name",
-    "Key": "your_key", // 在 keyType 为 'seq' 或 'time' 时可忽略
+    "Key": "your_key",
     "Value": "your_value",
-    "Update": false // 仅在 keyType 为 'string' 时有效。true: 更新或插入; false: 仅当 key 不存在时插入
+    "Update": false
   }
   ```
+  
 - **行为说明**:
     - **`keyType: string`**: `Key` 字段为必填。
     - **`keyType: seq`**: `Key` 字段被忽略，自动生成自增 ID 作为键。
     - **`keyType: time`**: `Key` 字段被忽略，自动生成当前 UTC 时间作为键。
+    
 - **成功响应**:
+    
     - **Code**: `201 Created`
+    
+    - **Body**:
+    
+      ```json
+      {
+        "key": "key"
+      }
+      ```
 ---
 #### **4.2** `DELETE /kv/:bucketName/:key`
 删除一个键值对。
