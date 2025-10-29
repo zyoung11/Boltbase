@@ -107,14 +107,11 @@ run_test("删除test-string桶的一个数据", delete(f"{baseUrl}/kv/test-strin
 run_test("删除test-seq桶的一个数据", delete(f"{baseUrl}/kv/test-seq/{seqKey}"))
 run_test("删除test-time桶的一个数据", delete(f"{baseUrl}/kv/test-time/{timeKey}"))
 
-run_test("读取test-string桶的所以数据", get(f"{baseUrl}/kv/all/test-string"))
-run_test("读取test-seq桶的所以数据", get(f"{baseUrl}/kv/all/test-seq"))
-run_test("读取test-time桶的所以数据", get(f"{baseUrl}/kv/all/test-time"))
+run_test("查询test-string桶的全部数据", get(f"{baseUrl}/kv/all/test-string"))
+run_test("查询test-seq桶的全部数据", get(f"{baseUrl}/kv/all/test-seq"))
+run_test("查询test-time桶的全部数据", get(f"{baseUrl}/kv/all/test-time"))
 
 run_test("查询test-string桶的一个数据", get(f"{baseUrl}/kv/get/test-string/test-key"))
 run_test("查询test-seq桶的一个数据", get(f"{baseUrl}/kv/get/test-seq/{seq_1}"))
 run_test("查询test-time桶的一个数据", get(f"{baseUrl}/kv/get/test-time/{time_1}"))
 
-run_test("查询test-string桶的全部数据", get(f"{baseUrl}/kv/all/test-string"))
-run_test("查询test-seq桶的全部数据", get(f"{baseUrl}/kv/all/test-seq"))
-run_test("查询test-time桶的全部数据", get(f"{baseUrl}/kv/all/test-time"))
