@@ -1,4 +1,4 @@
-from APITEST import run_test, post, get, put, delete
+from PAT import run_test, post, get, put, delete
 
 baseUrl = "http://localhost:5090"
 
