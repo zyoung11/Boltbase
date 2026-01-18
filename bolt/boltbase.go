@@ -1,18 +1,19 @@
 package bolt
 
 import (
-	"embed"
+	// "embed"
 	"fmt"
-	"io/fs"
+	// "io/fs"
 	"log"
-	"net/http"
+	// "net/http"
 	"strings"
 
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	// "github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"
 	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gofiber/template/html/v2"
+
+	// "github.com/gofiber/template/html/v2"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -23,17 +24,52 @@ type Route struct {
 	Handler fiber.Handler
 }
 
-func NewApp(name string, routes []Route, webFS embed.FS) *fiber.App {
-	viewSub, err := fs.Sub(webFS, "web/views")
-	if err != nil {
-		log.Fatal(err)
-	}
+// func NewApp(name string, routes []Route, webFS embed.FS) *fiber.App {
+// 	viewSub, err := fs.Sub(webFS, "web/views")
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
-	engine := html.NewFileSystem(http.FS(viewSub), ".html")
+// 	engine := html.NewFileSystem(http.FS(viewSub), ".html")
+
+// 	app := fiber.New(fiber.Config{
+// 		AppName: name,
+// 		Views:   engine,
+// 	})
+
+// 	app.Use(cors.New(cors.Config{
+// 		AllowOriginsFunc: func(origin string) bool { return true },
+// 		AllowCredentials: true,
+// 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, session_token, X-Requested-With, X-Session-Token, X-API-KEY, csrf-token",
+// 		AllowMethods:     "GET, POST, HEAD, PUT, DELETE, PATCH",
+// 	}))
+
+// 	app.Use(logger.New())
+
+// 	app.Use(healthcheck.New(healthcheck.Config{
+// 		LivenessEndpoint: "/health",
+// 	}))
+
+// 	for _, r := range routes {
+// 		app.Add(strings.ToUpper(r.Method), r.Path, r.Handler)
+// 	}
+
+// 	staticSub, err := fs.Sub(webFS, "web/public")
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+
+// 	app.Use("/public", filesystem.New(filesystem.Config{
+// 		Root: http.FS(staticSub),
+// 	}))
+
+// 	return app
+// }
+
+func NewApp(name string, routes []Route) *fiber.App {
 
 	app := fiber.New(fiber.Config{
 		AppName: name,
-		Views:   engine,
 	})
 
 	app.Use(cors.New(cors.Config{
@@ -53,20 +89,16 @@ func NewApp(name string, routes []Route, webFS embed.FS) *fiber.App {
 		app.Add(strings.ToUpper(r.Method), r.Path, r.Handler)
 	}
 
-	staticSub, err := fs.Sub(webFS, "web/public")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	app.Use("/public", filesystem.New(filesystem.Config{
-		Root: http.FS(staticSub),
-	}))
-
 	return app
 }
 
-func Run(name string, port int, routes []Route, webFS embed.FS) {
-	app := NewApp(name, routes, webFS)
+// func Run(name string, port int, routes []Route, webFS embed.FS) {
+// 	app := NewApp(name, routes, webFS)
+// 	log.Fatal(app.Listen(fmt.Sprintf(":%d", port)))
+// }
+
+func Run(name string, port int, routes []Route) {
+	app := NewApp(name, routes)
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", port)))
 }
 

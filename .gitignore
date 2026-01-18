@@ -6,3 +6,5 @@ tmp/build-errors.log
 main.exe
 testCode/Python/Boltbase.db
 testCode/PyTest/__pycache__
+Boltbase.exe
+Boltbase
