@@ -18,7 +18,7 @@
 ## 一、功能特性
 
 > [!NOTE]
->
+> 
 > Boltbase 是一个基于 Go 语言和 [boltdb](https://github.com/boltdb/bolt) 数据库构建的、可通过 RESTful API 进行交互的高性能键值(Key-Value)存储服务。它通过 [Fiber](https://github.com/gofiber/fiber) 框架提供 Web 服务。
 
 - **嵌入式键值数据库**: 基于 `boltdb`，提供持久化的本地数据存储，无需额外数据库服务。
@@ -56,19 +56,31 @@ go run .
 ```
 
 > [!NOTE]
->
+> 
 > 服务默认启动在 `5090` 端口。
 
 ### 3. 配置文件
 
 Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 
+### 4. 时间格式说明
+
+> [!NOTE]
+> 
+> Boltbase 中所有时间相关字段都使用 **UTC 时间格式**（ISO 8601 标准）。
+> 
+> - **时间序列主键**: 当创建 `keyType: time` 类型的 Bucket 时，系统会自动生成当前 UTC 时间作为键。
+> - **API 密钥过期时间**: 创建 API 密钥时设置的 `Duration` 过期时间，过期后会在 UTC 时间点失效。
+> - **时间格式示例**: `2026-03-27T12:00:00Z` - 这是标准的 ISO 8601 UTC 时间表示法。
+> 
+> **注意**: 所有时间戳均以 UTC 时区存储，客户端在显示时可能需要根据本地时区进行转换。
+
 ---
 
 ## 三、认证系统
 
 > [!NOTE]
->
+> 
 > Boltbase 的认证系统设计得非常灵活，以适应不同场景的需求。所有需要认证的请求都通过 `Authorization` HTTP Header 传递凭证。
 
 ### 1. 无密码开发模式 (默认)
@@ -98,9 +110,9 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - 每个密钥都有一个过期时间，过期的密钥将无法通过认证。
 
 > [!IMPORTANT]
->
+> 
 > **逻辑总结**:
->
+> 
 > 1. 系统初始化为无密码模式。
 > 2. 创建管理员密码后，进入管理员模式，所有操作需要管理员凭证。
 > 3. 管理员可以创建 API 密钥，持有密钥者可进行普通数据操作。
@@ -111,7 +123,7 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 ## 四、API 文档
 
 > [!NOTE]
->
+> 
 > 以下是 Boltbase 提供的所有 API 端点的详细说明。
 
 ### 1. 健康检查
@@ -123,11 +135,11 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 无
 
 - **预期返回**：
-
+  
   http状态码：200
-
+  
   返回体：
-
+  
   ```
   OK
   ```
@@ -141,11 +153,12 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 创建或更新管理员密码。首次创建后，系统将进入"管理员密码模式"。
 
 - **认证**:
+  
   - 首次创建: 无
   - 更新密码: 需要有效的管理员 `Authorization` Header。
 
 - **请求体** (`application/json`):
-
+  
   ```json
   {
     "Username": "admin",
@@ -154,11 +167,11 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
   ```
 
 - **预期返回**：
-
+  
   http状态码：201
-
+  
   返回体：
-
+  
   ```
   null
   ```
@@ -172,11 +185,11 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **限制**: 如果数据库中存在 API 密钥桶 (`BoltbaseApiKeyBucket`)，则无法删除密码，必须先删除 API 密钥桶。
 
 - **预期返回**：
-
+  
   http状态码：200
-
+  
   返回体：
-
+  
   ```
   null
   ```
@@ -188,7 +201,7 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要有效的管理员 `Authorization` Header。
 
 - **请求体** (`application/json`):
-
+  
   ```json
   {
     "Duration": "24h"
@@ -196,26 +209,26 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
   ```
 
 - **Duration 有效单位**：
-
+  
   `Duration` 字符串可以组合使用以下单位，例如 `"1w2d6h"` 表示 1 周 2 天 6 小时。
-
-  | 单位 | 描述 |
-  | :--- | :--- |
-  | `w` | 周 (Weeks) |
-  | `d` | 天 (Days) |
-  | `h` | 小时 (Hours) |
-  | `m` | 分钟 (Minutes) |
-  | `s` | 秒 (Seconds) |
-  | `ms` | 毫秒 (Milliseconds) |
+  
+  | 单位           | 描述                |
+  |:------------ |:----------------- |
+  | `w`          | 周 (Weeks)         |
+  | `d`          | 天 (Days)          |
+  | `h`          | 小时 (Hours)        |
+  | `m`          | 分钟 (Minutes)      |
+  | `s`          | 秒 (Seconds)       |
+  | `ms`         | 毫秒 (Milliseconds) |
   | `us` or `µs` | 微秒 (Microseconds) |
-  | `ns` | 纳秒 (Nanoseconds) |
+  | `ns`         | 纳秒 (Nanoseconds)  |
 
 - **预期返回**：
-
+  
   http状态码：201
-
+  
   返回体：
-
+  
   ```json
   {
     "apiKey": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
@@ -230,11 +243,11 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要有效的管理员 `Authorization` Header。
 
 - **预期返回**：
-
+  
   http状态码：204
-
+  
   返回体：
-
+  
   ```
   null
   ```
@@ -250,15 +263,16 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要
 
 - **URL 参数**:
+  
   - `bucketName` (string, required): Bucket 的名称。
   - `keyType` (string, required): Bucket 的主键类型。可选值: `string`, `seq`, `time`。
 
 - **预期返回**：
-
+  
   http状态码：201
-
+  
   返回体：
-
+  
   ```
   null
   ```
@@ -270,11 +284,11 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要
 
 - **预期返回**：
-
+  
   http状态码：200
-
+  
   返回体：
-
+  
   ```json
   {
     "BucketList": ["users", "products", "logs"],
@@ -289,11 +303,11 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要
 
 - **预期返回**：
-
+  
   http状态码：200
-
+  
   返回体：
-
+  
   ```json
   {
     "bucketTypeList": {
@@ -311,15 +325,16 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要
 
 - **URL 参数**:
+  
   - `oldName` (string, required): 旧的 Bucket 名称。
   - `newName` (string, required): 新的 Bucket 名称。
 
 - **预期返回**：
-
+  
   http状态码：204
-
+  
   返回体：
-
+  
   ```
   null
   ```
@@ -331,14 +346,15 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要
 
 - **URL 参数**:
+  
   - `bucketName` (string, required): 要删除的 Bucket 名称。
 
 - **预期返回**：
-
+  
   http状态码：204
-
+  
   返回体：
-
+  
   ```
   null
   ```
@@ -352,7 +368,7 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 插入或更新一个键值对。
 
 > [!NOTE]
->
+> 
 > - 在 keyType 为 'seq' 或 'time' 时，请求体的**"key"**可以忽略。
 > - 在 keyType 为 'string' 时有效。**"Update"**为**true**更新或插入，为**false**仅当 key 不存在时插入
 > - 在 keyType 为 'string' 时不返回**"key"**
@@ -360,7 +376,7 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要
 
 - **请求体** (`application/json`):
-
+  
   ```json
   {
     "Bucket": "your_bucket_name",
@@ -371,16 +387,17 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
   ```
 
 - **行为说明**:
+  
   - **`keyType: string`**: `Key` 字段为必填。
   - **`keyType: seq`**: `Key` 字段被忽略，自动生成自增 ID 作为键。
   - **`keyType: time`**: `Key` 字段被忽略，自动生成当前 UTC 时间作为键。
 
 - **预期返回**：
-
+  
   http状态码：201
-
+  
   返回体：
-
+  
   ```json
   {
     "key": "key"
@@ -394,15 +411,16 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要
 
 - **URL 参数**:
+  
   - `bucketName` (string, required): Bucket 名称。
   - `key` (string, required): 要删除的键。
 
 - **预期返回**：
-
+  
   http状态码：204
-
+  
   返回体：
-
+  
   ```
   null
   ```
@@ -418,15 +436,16 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要
 
 - **URL 参数**:
+  
   - `bucketName` (string, required): Bucket 名称。
   - `key` (string, required): 要查询的键。
 
 - **预期返回**：
-
+  
   http状态码：200
-
+  
   返回体：
-
+  
   ```json
   {
     "value": "the_stored_value"
@@ -440,15 +459,16 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要
 
 - **URL 参数**:
+  
   - `bucketName` (string, required): Bucket 名称。
   - `prefix` (string, required): 键的前缀。
 
 - **预期返回**：
-
+  
   http状态码：200
-
+  
   返回体：
-
+  
   ```json
   {
     "total": 2,
@@ -466,6 +486,7 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要
 
 - **URL 参数**:
+  
   - `bucketName` (string, required): Bucket 名称。
   - `start` (string, required): 范围的起始键。
   - `end` (string, required): 范围的结束键。
@@ -473,11 +494,11 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **注意**: 如果 Bucket 的 `keyType` 是 `seq`，`start` 和 `end` 应该是整数。
 
 - **预期返回**：
-
+  
   http状态码：200
-
+  
   返回体：
-
+  
   ```json
   {
     "total": 5,
@@ -496,14 +517,15 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要
 
 - **URL 参数**:
+  
   - `bucketName` (string, required): Bucket 名称。
 
 - **预期返回**：
-
+  
   http状态码：200
-
+  
   返回体：
-
+  
   ```json
   {
     "total": 150,
@@ -526,14 +548,15 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: 需要
 
 - **URL 参数**:
+  
   - `bucketName` (string, required): Bucket 名称。
 
 - **预期返回**：
-
+  
   http状态码：200
-
+  
   返回体：
-
+  
   ```json
   {
     "total": 150
@@ -547,11 +570,11 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 - **认证**: **仅限管理员**
 
 - **预期返回**：
-
+  
   http状态码：201
-
+  
   返回体：
-
+  
   ```
   null
   ```
