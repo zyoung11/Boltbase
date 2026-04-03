@@ -35,22 +35,14 @@ var Routes = []Route{
 	{Method: "GET", Path: "/kv/count/:bucketName", Handler: countBucketKV},
 	{Method: "GET", Path: "/bucket/info/:bucketName", Handler: getInfo},
 	{Method: "POST", Path: "/export", Handler: exportdb},
+	{Method: "POST", Path: "/import", Handler: importdb},
+	{Method: "PUT", Path: "/import", Handler: importdbReplace},
 
 	// auth
 	{Method: "POST", Path: "/auth/password", Handler: createPassword},
 	{Method: "DELETE", Path: "/auth/password", Handler: deletePassword},
 	{Method: "POST", Path: "/auth/apikey", Handler: createApiKey},
 	{Method: "DELETE", Path: "/auth/apikey", Handler: deleteExpiryApiKey},
-
-	// web
-	// {Method: "GET", Path: "/", Handler: index},
-	// {Method: "GET", Path: "/favicon.ico", Handler: favicon},
-	// {Method: "GET", Path: "/web/getBuckets", Handler: getBuckets},
-	// {Method: "GET", Path: "/web/setBucket/:bucketName", Handler: setBucket},
-	// {Method: "GET", Path: "/web/setPage/:page", Handler: setPage},
-	// {Method: "GET", Path: "/web/setStep/:step", Handler: setStep},
-	// {Method: "GET", Path: "/web/changePage/:direction", Handler: changePage},
-	// {Method: "GET", Path: "/web/info/:bucketName", Handler: getInfoWeb},
 }
 
 var (
@@ -1105,4 +1097,78 @@ func deleteExpiryApiKey(c *fiber.Ctx) error {
 		}
 	}
 	return c.SendStatus(204)
+}
+
+func importdb(c *fiber.Ctx) error {
+	auth, err := auth(c.Get("Authorization"))
+	if err != nil && err != ErrFooUnauthorized {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	if err == ErrFooUnauthorized {
+		return c.Status(401).Send(nil)
+	}
+	if !auth.IsAdmin {
+		return c.SendStatus(403)
+	}
+
+	type request struct {
+		Path string
+	}
+	var req request
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	if req.Path == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "No path",
+		})
+	}
+
+	if err := ImportDB(db, req.Path); err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	return c.SendStatus(201)
+}
+
+func importdbReplace(c *fiber.Ctx) error {
+	auth, err := auth(c.Get("Authorization"))
+	if err != nil && err != ErrFooUnauthorized {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	if err == ErrFooUnauthorized {
+		return c.Status(401).Send(nil)
+	}
+	if !auth.IsAdmin {
+		return c.SendStatus(403)
+	}
+
+	type request struct {
+		Path string
+	}
+	var req request
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	if req.Path == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "No path",
+		})
+	}
+
+	if err := ImportDBReplace(db, req.Path); err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	return c.SendStatus(201)
 }

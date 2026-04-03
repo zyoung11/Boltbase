@@ -243,28 +243,6 @@ func PutTime(db *bolt.DB, bucket, value string) (string, error) {
 	return string(key), nil
 }
 
-func PutTimeWithLocation(db *bolt.DB, bucket, value, locationName string) (string, error) {
-	var key []byte
-	loc, err := time.LoadLocation(locationName)
-	if err != nil {
-		return "", fmt.Errorf("failed to load location: %w", err)
-	}
-
-	err = db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		if b == nil {
-			return ErrBucketNotFound
-		}
-		b.FillPercent = 0.95
-		key = []byte(time.Now().In(loc).Format(layoutMicro))
-		return b.Put(key, []byte(value))
-	})
-	if err != nil {
-		return "", err
-	}
-	return string(key), nil
-}
-
 // ---------------- 9. Get Value ----------------
 
 func GetKV(db *bolt.DB, bucket, key string) (string, error) {
