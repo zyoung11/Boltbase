@@ -433,7 +433,13 @@ func getKV(c *fiber.Ctx) error {
 		})
 	}
 
-	value, err := GetKV(db, bucketName, c.Params("key"))
+	key, err := url.QueryUnescape(c.Params("key"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid key encoding",
+		})
+	}
+	value, err := GetKV(db, bucketName, key)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -496,7 +502,13 @@ func prefixScan(c *fiber.Ctx) error {
 		})
 	}
 
-	kv, err := PrefixScan(db, bucketName, c.Params("prefix"))
+	prefix, err := url.QueryUnescape(c.Params("prefix"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid prefix encoding",
+		})
+	}
+	kv, err := PrefixScan(db, bucketName, prefix)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -566,7 +578,19 @@ func rangeScan(c *fiber.Ctx) error {
 			"kv":    kv,
 		})
 	}
-	kv, err := RangeScan(db, bucketName, c.Params("start"), c.Params("end"))
+	start, err := url.QueryUnescape(c.Params("start"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid start encoding",
+		})
+	}
+	end, err := url.QueryUnescape(c.Params("end"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid end encoding",
+		})
+	}
+	kv, err := RangeScan(db, bucketName, start, end)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
@@ -825,7 +849,13 @@ func deleteKV(c *fiber.Ctx) error {
 		return c.SendStatus(204)
 	}
 
-	if err := DeleteKV(db, bucketName, c.Params("key")); err != nil {
+	key, err := url.QueryUnescape(c.Params("key"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "invalid key encoding",
+		})
+	}
+	if err := DeleteKV(db, bucketName, key); err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": err.Error(),
 		})
