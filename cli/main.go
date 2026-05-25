@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 
 	"boltcli/bolt"
 	"boltcli/logger"
@@ -16,6 +19,131 @@ import (
 )
 
 var l logger.Logger
+
+// Catppuccin Macchiato ANSI true color constants for help text
+const (
+	cRst  = "\x1b[0m"
+	cBold = "\x1b[1m"
+	cHdr  = "\x1b[38;2;198;160;246m" // mauve for section headers (NAME:, USAGE:)
+	cApp  = "\x1b[38;2;138;173;244m" // blue for app/command name
+	cCmd  = "\x1b[38;2;166;218;149m" // green for command names in COMMANDS list
+	cFlag = "\x1b[38;2;238;212;159m" // yellow for flag names
+)
+
+var defaultHelpPrinter = cli.HelpPrinter
+
+func init() {
+	cli.HelpPrinter = func(w io.Writer, templ string, data interface{}) {
+		var buf bytes.Buffer
+		defaultHelpPrinter(&buf, templ, data)
+		colored := colorHelp(buf.String())
+		w.Write([]byte(colored))
+	}
+}
+
+func colorHelp(s string) string {
+	lines := strings.Split(s, "\n")
+	var out []string
+	inSection := ""
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// section headers: all-caps word(s) ending with colon, e.g. NAME:, GLOBAL OPTIONS:
+		if len(trimmed) > 0 && trimmed[len(trimmed)-1] == ':' && strings.ToUpper(trimmed) == trimmed {
+			inSection = trimmed
+			out = append(out, cBold+cHdr+trimmed+cRst)
+			continue
+		}
+		if strings.HasPrefix(inSection, "NAME") && strings.HasPrefix(line, "   ") && trimmed != "" {
+			// command name line
+			padding := line[:len(line)-len(strings.TrimLeft(line, " "))]
+			out = append(out, padding+cApp+strings.TrimSpace(line)+cRst)
+			continue
+		}
+		if strings.HasPrefix(inSection, "USAGE") && strings.HasPrefix(line, "   ") && trimmed != "" {
+			// usage line: color by token type
+			//   command path → pink, [...] → yellow, <...> → default, extra words → green
+			padding := line[:len(line)-len(trimmed)]
+			var colored strings.Builder
+			seenBracket := false
+			i := 0
+			for i < len(trimmed) {
+				if trimmed[i] == '[' {
+					seenBracket = true
+					end := strings.IndexByte(trimmed[i:], ']')
+					if end < 0 {
+						end = len(trimmed) - i
+					} else {
+						end++
+					}
+					colored.WriteString(cFlag + trimmed[i:i+end] + cRst)
+					i += end
+				} else if trimmed[i] == '<' {
+					end := strings.IndexByte(trimmed[i:], '>')
+					if end < 0 {
+						end = len(trimmed) - i
+					} else {
+						end++
+					}
+					colored.WriteString(trimmed[i : i+end])
+					i += end
+				} else if trimmed[i] == ' ' {
+					colored.WriteByte(' ')
+					i++
+				} else {
+					end := strings.IndexAny(trimmed[i:], " [<")
+					if end < 0 {
+						end = len(trimmed) - i
+					}
+					word := trimmed[i : i+end]
+					if seenBracket {
+						colored.WriteString(cCmd + word + cRst)
+					} else {
+						colored.WriteString(cApp + word + cRst)
+					}
+					i += end
+				}
+			}
+			out = append(out, padding+colored.String())
+			continue
+		}
+		if (strings.HasPrefix(inSection, "OPTION") || strings.HasPrefix(inSection, "GLOBAL OPTION")) &&
+			strings.HasPrefix(line, "   ") && trimmed != "" {
+			// find flags: match up to double-space or tab (the description separator)
+			descSep := strings.Index(trimmed, "  ")
+			tabSep := strings.Index(trimmed, "\t")
+			end := len(trimmed)
+			if descSep >= 0 && descSep < end {
+				end = descSep
+			}
+			if tabSep >= 0 && tabSep < end {
+				end = tabSep
+			}
+			if end > 0 {
+				flagPart := trimmed[:end]
+				padding := line[:len(line)-len(trimmed)]
+				rest := line[len(padding)+end:]
+				out = append(out, padding+cFlag+flagPart+cRst+rest)
+				continue
+			}
+		}
+		if strings.HasPrefix(inSection, "COMMAND") && strings.HasPrefix(line, "   ") && trimmed != "" {
+			// command name(s) in COMMANDS list (before tab/double-space separator)
+			sep := strings.Index(trimmed, "\t")
+			if sep < 0 {
+				sep = strings.Index(trimmed, "  ")
+			}
+			if sep > 0 {
+				cmdName := trimmed[:sep]
+				padding := line[:len(line)-len(trimmed)]
+				rest := trimmed[sep:]
+				out = append(out, padding+cCmd+cmdName+cRst+rest)
+				continue
+			}
+		}
+		out = append(out, line)
+	}
+	return strings.Join(out, "\n")
+}
 
 func outputFlags() []cli.Flag {
 	return []cli.Flag{

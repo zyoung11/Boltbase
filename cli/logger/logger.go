@@ -6,13 +6,14 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// Catppuccin Macchiato palette
 var (
-	promptStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Render  // bright cyan
-	inputStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Render  // bright cyan
-	infoStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("75")).Render  // light blue
-	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("83")).Render  // light green
-	warnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("221")).Render // yellow
-	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Render // light red
+	promptStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#8aadf4")).Render  // blue
+	inputStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#8aadf4")).Render  // blue
+	infoStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#8aadf4")).Render  // blue
+	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#a6da95")).Render  // green
+	warnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#eed49f")).Render  // yellow
+	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#ed8796")).Render  // red
 )
 
 type Logger struct{}
