@@ -763,42 +763,69 @@ func showKVTable(db *boltLib.DB, bucketName, dbPath, format string, kv map[strin
 
 func interactiveMode(c *cli.Context) error {
 	db := c.App.Metadata["db"].(*boltLib.DB)
+	dbPath := c.String("db")
 
-	// Step 1: show bucket list
+	// build bucket list
 	buckets, err := bolt.ListBuckets(db)
 	if err != nil {
 		return err
 	}
-	var rows [][]string
+	var bucketRows [][]string
 	for _, b := range buckets {
 		if b == bolt.MetadataBucket {
 			continue
 		}
 		keyType, _ := bolt.GetKV(db, bolt.MetadataBucket, b)
-		rows = append(rows, []string{b, keyType})
-	}
-	_, selected := table.ShowTable(table.TableConfig{
-		Headers: []string{"Bucket Name", "Key Type"},
-		Rows:    rows,
-	})
-	if selected == nil {
-		return nil
+		bucketRows = append(bucketRows, []string{b, keyType})
 	}
 
-	// Step 2: show all KV for selected bucket
-	bucketName, keyType := selected[0], selected[1]
-	dbPath := c.String("db")
+	var selectedBucket string
 
-	var kv map[string]string
-	if keyType == "seq" {
-		kv, err = bolt.ScanAllSeq(db, bucketName)
-	} else {
-		kv, err = bolt.ScanAll(db, bucketName)
-	}
-	if err != nil {
-		return err
+	// loadKV is called when user selects a bucket - returns the KV table config
+	loadKV := func(bucketName string) table.TableConfig {
+		selectedBucket = bucketName
+		keyType, _ := bolt.GetKV(db, bolt.MetadataBucket, bucketName)
+		var kv map[string]string
+		if keyType == "seq" {
+			kv, err = bolt.ScanAllSeq(db, bucketName)
+		} else {
+			kv, err = bolt.ScanAll(db, bucketName)
+		}
+		if err != nil || len(kv) == 0 {
+			return table.TableConfig{}
+		}
+		keys := make([]string, 0, len(kv))
+		for k := range kv {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		var kvRows [][]string
+		for _, k := range keys {
+			kvRows = append(kvRows, []string{k, kv[k]})
+		}
+		return table.TableConfig{
+			Headers: []string{"Key", "Value"},
+			Rows:    kvRows,
+		}
 	}
 
-	showKVTable(db, bucketName, dbPath, outputFormat(c), kv)
+	// use single bubbletea program for both levels
+	_, selected := table.ShowInteractive(
+		table.TableConfig{
+			Headers: []string{"Bucket Name", "Key Type"},
+			Rows:    bucketRows,
+		},
+		loadKV,
+	)
+
+	if selected != nil && selectedBucket != "" {
+		keyType, _ := bolt.GetKV(db, bolt.MetadataBucket, selectedBucket)
+		count, _ := bolt.CountBucketKV(db, selectedBucket)
+		fmt.Printf("[i] %-12s %s\n", "Database:", dbPath)
+		fmt.Printf("[i] %-12s %s (type: %s, %d keys)\n", "Bucket:", selectedBucket, keyType, count)
+		fmt.Printf("[i] %-12s %s\n", "Key:", selected[0])
+		fmt.Printf("[i] %-12s %s\n", "Value:", selected[1])
+	}
+
 	return nil
 }

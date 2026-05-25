@@ -34,6 +34,33 @@ func ShowTable(config TableConfig) (int, []string) {
 	return -1, nil
 }
 
+// ShowInteractive shows a two-level table hierarchy within a single bubbletea program,
+// avoiding alt screen flicker between levels. Returns the final selected row and its index.
+func ShowInteractive(buckets TableConfig, loadKV func(string) TableConfig) (int, []string) {
+	m := model{
+		config:      buckets,
+		maxRowLines: 999,
+		level:       0,
+		buckets:     &buckets,
+		loadKV:      loadKV,
+	}
+
+	p := tea.NewProgram(m)
+	finalModel, err := p.Run()
+	if err != nil {
+		fmt.Println("Error running program:", err)
+		os.Exit(1)
+	}
+
+	if m, ok := finalModel.(model); ok && m.selected && m.level == 1 {
+		if m.cursor >= 0 && m.cursor < len(m.config.Rows) {
+			return m.cursor, m.config.Rows[m.cursor]
+		}
+	}
+
+	return -1, nil
+}
+
 type model struct {
 	config      TableConfig
 	cursor      int
@@ -44,6 +71,19 @@ type model struct {
 	width       int
 	colWidths   []int
 	maxRowLines int
+
+	// interactive two-level fields
+	level   int // 0: bucket list, 1: kv table
+	buckets *TableConfig
+	loadKV  func(string) TableConfig
+}
+
+func (m *model) loadKVTable() TableConfig {
+	if m.buckets == nil || m.cursor < 0 || m.cursor >= len(m.buckets.Rows) {
+		return TableConfig{}
+	}
+	bucketName := m.buckets.Rows[m.cursor][0]
+	return m.loadKV(bucketName)
 }
 
 func (m model) Init() tea.Cmd { return nil }
@@ -59,9 +99,37 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c":
 			return m, tea.Quit
+		case "q":
+			if m.level == 0 || m.buckets == nil {
+				return m, tea.Quit
+			}
+			// go back to bucket list
+			m.level = 0
+			m.config = *m.buckets
+			m.cursor = 0
+			m.offset = 0
+			m.colOff = 0
+			m.calcColWidths()
+			m.calcMaxRowLines()
+			return m, nil
 		case "enter":
+			if m.level == 0 && m.loadKV != nil {
+				// transition to KV table for selected bucket
+				kvConfig := m.loadKVTable()
+				if len(kvConfig.Rows) == 0 {
+					return m, nil
+				}
+				m.level = 1
+				m.config = kvConfig
+				m.cursor = 0
+				m.offset = 0
+				m.colOff = 0
+				m.calcColWidths()
+				m.calcMaxRowLines()
+				return m, nil
+			}
 			m.selected = true
 			return m, tea.Quit
 		case "down", "j":
