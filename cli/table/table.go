@@ -43,6 +43,7 @@ func ShowInteractive(buckets TableConfig, loadKV func(string) TableConfig) (int,
 		level:       0,
 		buckets:     &buckets,
 		loadKV:      loadKV,
+		kvCursors:   make(map[string]int),
 	}
 
 	p := tea.NewProgram(m)
@@ -73,9 +74,12 @@ type model struct {
 	maxRowLines int
 
 	// interactive two-level fields
-	level   int // 0: bucket list, 1: kv table
-	buckets *TableConfig
-	loadKV  func(string) TableConfig
+	level        int           // 0: bucket list, 1: kv table
+	buckets      *TableConfig
+	loadKV       func(string) TableConfig
+	prevBucket   int           // cursor in bucket list, restored when going back
+	kvCursors    map[string]int // per-bucket KV cursor memory
+	currentBucket string        // bucket being viewed in level 1
 }
 
 func (m *model) loadKVTable() TableConfig {
@@ -105,29 +109,44 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.level == 0 || m.buckets == nil {
 				return m, tea.Quit
 			}
-			// go back to bucket list
+			// save KV cursor for current bucket, go back to bucket list
+			if m.currentBucket != "" {
+				m.kvCursors[m.currentBucket] = m.cursor
+			}
 			m.level = 0
 			m.config = *m.buckets
-			m.cursor = 0
+			m.cursor = m.prevBucket
 			m.offset = 0
 			m.colOff = 0
 			m.calcColWidths()
 			m.calcMaxRowLines()
+			m.ensureVisible()
 			return m, nil
 		case "enter":
 			if m.level == 0 && m.loadKV != nil {
+				// save bucket cursor
+				m.prevBucket = m.cursor
+
 				// transition to KV table for selected bucket
+				bucketName := m.buckets.Rows[m.cursor][0]
+				m.currentBucket = bucketName
 				kvConfig := m.loadKVTable()
 				if len(kvConfig.Rows) == 0 {
 					return m, nil
 				}
 				m.level = 1
 				m.config = kvConfig
-				m.cursor = 0
+				// restore KV cursor for this bucket if previously visited
+				if m.kvCursors != nil {
+					m.cursor = m.kvCursors[bucketName]
+				} else {
+					m.cursor = 0
+				}
 				m.offset = 0
 				m.colOff = 0
 				m.calcColWidths()
 				m.calcMaxRowLines()
+				m.ensureVisible()
 				return m, nil
 			}
 			m.selected = true
