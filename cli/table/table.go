@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
@@ -34,15 +36,28 @@ func ShowTable(config TableConfig) (int, []string) {
 	return -1, nil
 }
 
+// InteractiveCallbacks provides database operations for ShowInteractive.
+type InteractiveCallbacks struct {
+	CreateBucket  func(name, keyType string) error
+	RenameBucket  func(oldName, newName string) error
+	DropBucket    func(name string) error
+	PutKV         func(bucket, key, value string) error
+	DeleteKV      func(bucket, key string) error
+	ReloadBuckets func() TableConfig // refresh after bucket changes
+}
+
 // ShowInteractive shows a two-level table hierarchy within a single bubbletea program,
-// avoiding alt screen flicker between levels. Returns the final selected row and its index.
-func ShowInteractive(buckets TableConfig, loadKV func(string) TableConfig) (int, []string) {
+// avoiding alt screen flicker between levels. Supports inline actions via callbacks.
+func ShowInteractive(buckets TableConfig, loadKV func(string) TableConfig,
+	cb InteractiveCallbacks) (int, []string) {
+
 	m := model{
 		config:      buckets,
 		maxRowLines: 999,
 		level:       0,
 		buckets:     &buckets,
 		loadKV:      loadKV,
+		cb:          cb,
 		kvCursors:   make(map[string]int),
 		kvOffsets:   make(map[string]int),
 	}
@@ -63,6 +78,20 @@ func ShowInteractive(buckets TableConfig, loadKV func(string) TableConfig) (int,
 	return -1, nil
 }
 
+// promptState tracks what kind of inline input is active.
+type promptState int
+
+const (
+	promptNone promptState = iota
+	promptCreateBucketName
+	promptCreateBucketType
+	promptRenameBucket
+	promptDropBucket
+	promptPutKey
+	promptPutValue
+	promptDeleteKV
+)
+
 type model struct {
 	config      TableConfig
 	cursor      int
@@ -78,10 +107,18 @@ type model struct {
 	level        int            // 0: bucket list, 1: kv table
 	buckets      *TableConfig
 	loadKV       func(string) TableConfig
+	cb           InteractiveCallbacks
 	prevBucket   int            // cursor in bucket list, restored when going back
 	kvCursors    map[string]int // per-bucket KV cursor memory
 	kvOffsets    map[string]int // per-bucket KV scroll offset memory
 	currentBucket string         // bucket being viewed in level 1
+
+	// inline prompt fields
+	prompt      promptState
+	promptInput textinput.Model
+	promptBuf   string    // stores first input value while waiting for second
+	actionErr   string    // error message to display after an action
+	errUntil    time.Time // show actionErr until this time
 }
 
 func (m *model) loadKVTable() TableConfig {
@@ -104,6 +141,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
+		// If in prompt mode, handle prompt input first
+		if m.prompt != promptNone {
+			return m.handlePromptKey(msg)
+		}
+
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
@@ -127,10 +169,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "enter":
 			if m.level == 0 && m.loadKV != nil {
-				// save bucket cursor
 				m.prevBucket = m.cursor
-
-				// transition to KV table for selected bucket
 				bucketName := m.buckets.Rows[m.cursor][0]
 				m.currentBucket = bucketName
 				kvConfig := m.loadKVTable()
@@ -139,7 +178,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.level = 1
 				m.config = kvConfig
-				// restore KV cursor and offset for this bucket if previously visited
 				if m.kvCursors != nil {
 					m.cursor = m.kvCursors[bucketName]
 					m.offset = m.kvOffsets[bucketName]
@@ -195,196 +233,194 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if colStart, _ := m.visibleCols(); colStart > 0 {
 				m.colOff--
 			}
+
+		// bucket-level actions
+		case "c":
+			if m.level == 0 && m.cb.CreateBucket != nil {
+				m.startPrompt(promptCreateBucketName, "Bucket name:")
+			}
+		case "r":
+			if m.level == 0 && m.cb.RenameBucket != nil && len(m.config.Rows) > 0 {
+				m.startPrompt(promptRenameBucket, "New name:")
+			}
+		case "d":
+			if m.level == 0 && m.cb.DropBucket != nil && len(m.config.Rows) > 0 {
+				m.startPrompt(promptDropBucket, "Delete '"+m.config.Rows[m.cursor][0]+"'? (y/n):")
+			}
+
+		// KV-level actions
+		case "p":
+			if m.level == 1 && m.cb.PutKV != nil {
+				m.startPrompt(promptPutKey, "Key:")
+			}
+		case "x":
+			if m.level == 1 && m.cb.DeleteKV != nil && len(m.config.Rows) > 0 {
+				m.startPrompt(promptDeleteKV, "Delete '"+m.config.Rows[m.cursor][0]+"'? (y/n):")
+			}
 		}
 	}
 
 	return m, nil
 }
 
-func (m *model) calcColWidths() {
-	m.colWidths = make([]int, len(m.config.Headers))
+// startPrompt initializes the inline text input for a given action.
+func (m *model) startPrompt(state promptState, placeholder string) {
+	ti := textinput.New()
+	ti.Placeholder = placeholder
+	ti.SetWidth(40)
+	ti.CharLimit = 256
+	ti.Focus()
+	m.prompt = state
+	m.promptInput = ti
+	m.promptBuf = ""
+}
 
-	const maxColWidth = 30
-
-	for i, h := range m.config.Headers {
-		w := lipgloss.Width(h)
-		for _, row := range m.config.Rows {
-			if i < len(row) {
-				cw := lipgloss.Width(row[i])
-				if cw > w {
-					w = cw
-				}
-			}
-		}
-		if w > maxColWidth {
-			w = maxColWidth
-		}
-		m.colWidths[i] = w
+// handlePromptKey processes keypresses when in prompt mode.
+func (m *model) handlePromptKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "esc":
+		m.prompt = promptNone
+		return m, nil
+	case "enter":
+		val := m.promptInput.Value()
+		return m.handlePromptSubmit(val)
+	default:
+		var cmd tea.Cmd
+		m.promptInput, cmd = m.promptInput.Update(msg)
+		return m, cmd
 	}
 }
 
-// availDataLines returns the number of terminal lines available for data rows.
-func (m *model) availDataLines() int {
-	return max(1, m.height-6)
+// handlePromptSubmit processes the collected input after Enter is pressed.
+func (m *model) handlePromptSubmit(val string) (tea.Model, tea.Cmd) {
+	switch m.prompt {
+	case promptCreateBucketName:
+		if val == "" {
+			m.prompt = promptNone
+			return m, nil
+		}
+		m.promptBuf = val
+		m.promptInput.SetValue("")
+		m.promptInput.Placeholder = "Key type (string/seq/time):"
+		m.prompt = promptCreateBucketType
+		return m, nil
+
+	case promptCreateBucketType:
+		if val != "string" && val != "seq" && val != "time" {
+			m.actionErr = "invalid key type, must be string/seq/time"
+			m.errUntil = time.Now().Add(3 * time.Second)
+			m.prompt = promptNone
+			m.refreshBuckets()
+			return m, nil
+		}
+		name := m.promptBuf
+		if err := m.cb.CreateBucket(name, val); err != nil {
+			m.actionErr = err.Error()
+			m.errUntil = time.Now().Add(3 * time.Second)
+		}
+		m.prompt = promptNone
+		m.refreshBuckets()
+		return m, nil
+
+	case promptRenameBucket:
+		if val == "" {
+			m.prompt = promptNone
+			return m, nil
+		}
+		oldName := m.config.Rows[m.cursor][0]
+		if err := m.cb.RenameBucket(oldName, val); err != nil {
+			m.actionErr = err.Error()
+			m.errUntil = time.Now().Add(3 * time.Second)
+		}
+		m.prompt = promptNone
+		m.refreshBuckets()
+		return m, nil
+
+	case promptDropBucket:
+		if val == "y" || val == "Y" {
+			name := m.config.Rows[m.cursor][0]
+			if err := m.cb.DropBucket(name); err != nil {
+				m.actionErr = err.Error()
+				m.errUntil = time.Now().Add(3 * time.Second)
+			}
+		}
+		m.prompt = promptNone
+		m.refreshBuckets()
+		return m, nil
+
+	case promptPutKey:
+		m.promptBuf = val
+		m.promptInput.SetValue("")
+		m.promptInput.Placeholder = "Value:"
+		m.prompt = promptPutValue
+		return m, nil
+
+	case promptPutValue:
+		key, value := m.promptBuf, val
+		bucket := m.currentBucket
+		if err := m.cb.PutKV(bucket, key, value); err != nil {
+			m.actionErr = err.Error()
+			m.errUntil = time.Now().Add(3 * time.Second)
+		}
+		m.prompt = promptNone
+		// refresh KV table
+		if m.currentBucket != "" {
+			kvConfig := m.loadKV(m.currentBucket)
+			m.config = kvConfig
+			m.cursor = 0
+			m.offset = 0
+			m.calcColWidths()
+			m.calcMaxRowLines()
+		}
+		return m, nil
+
+	case promptDeleteKV:
+		if val == "y" || val == "Y" {
+			key := m.config.Rows[m.cursor][0]
+			bucket := m.currentBucket
+			if err := m.cb.DeleteKV(bucket, key); err != nil {
+				m.actionErr = err.Error()
+				m.errUntil = time.Now().Add(3 * time.Second)
+			}
+		}
+		m.prompt = promptNone
+		// refresh KV table
+		if m.currentBucket != "" {
+			kvConfig := m.loadKV(m.currentBucket)
+			m.config = kvConfig
+			if m.cursor >= len(kvConfig.Rows) {
+				m.cursor = len(kvConfig.Rows) - 1
+			}
+			m.offset = 0
+			m.calcColWidths()
+			m.calcMaxRowLines()
+		}
+		return m, nil
+	}
+
+	m.prompt = promptNone
+	return m, nil
 }
 
-// calcMaxRowLines calculates the maximum number of lines a single row can
-// occupy, ensuring at least 2 logical rows are always visible.
-func (m *model) calcMaxRowLines() {
-	if m.height <= 0 {
-		m.maxRowLines = 999
+// refreshBuckets reloads the bucket list from the loadKV callback (using the first bucket as signal).
+func (m *model) refreshBuckets() {
+	if m.cb.ReloadBuckets == nil {
 		return
 	}
-	availLines := m.availDataLines()
-	m.maxRowLines = max(1, (availLines-1)/2)
-}
-
-// rowHeight returns the number of terminal lines a logical row occupies
-// due to text wrapping.
-func (m *model) rowHeight(ri int) int {
-	if m.colWidths == nil || ri < 0 || ri >= len(m.config.Rows) {
-		return 1
+	newBuckets := m.cb.ReloadBuckets()
+	m.buckets = &newBuckets
+	m.config = newBuckets
+	if m.cursor >= len(m.config.Rows) && len(m.config.Rows) > 0 {
+		m.cursor = len(m.config.Rows) - 1
 	}
-	maxLines := 1
-	for ci := range m.config.Headers {
-		if ci < len(m.config.Rows[ri]) {
-			w := lipgloss.Width(m.config.Rows[ri][ci])
-			if w > m.colWidths[ci] && m.colWidths[ci] > 0 {
-				lines := (w + m.colWidths[ci] - 1) / m.colWidths[ci]
-				if lines > maxLines {
-					maxLines = lines
-				}
-			}
-		}
+	if m.cursor < 0 {
+		m.cursor = 0
 	}
-	if maxLines > m.maxRowLines {
-		maxLines = m.maxRowLines
-	}
-	return maxLines
-}
-
-// visibleRowRange returns the start (inclusive) and end (exclusive) indices
-// of logical rows that fit in the visible area, respecting per-row heights.
-// At least one row is always included, even if it overflows the screen.
-func (m *model) visibleRowRange() (start, end int) {
-	start = m.offset
-	if start >= len(m.config.Rows) {
-		return
-	}
-	availLines := m.availDataLines()
-	used := 0
-	end = start
-	for end < len(m.config.Rows) {
-		rh := m.rowHeight(end)
-		sep := 0
-		if end > start {
-			sep = 1 // row separator line
-		}
-		if used+sep+rh > availLines {
-			if end == start {
-				end++
-			}
-			break
-		}
-		used += sep + rh
-		end++
-	}
-	return
-}
-
-func (m *model) ensureVisible() {
-	if m.cursor < m.offset {
-		m.offset = m.cursor
-		return
-	}
-
-	for {
-		_, end := m.visibleRowRange()
-		if m.cursor < end {
-			return
-		}
-		if m.offset >= m.cursor {
-			m.offset = m.cursor
-			return
-		}
-		m.offset++
-	}
-}
-
-// visibleCols returns the start (inclusive) and end (exclusive) indices
-// of columns that fit in the terminal width.
-func (m model) visibleCols() (start, end int) {
-	if m.width <= 0 || len(m.colWidths) == 0 {
-		return 0, len(m.colWidths)
-	}
-
-	colContent := func(i int) int { return m.colWidths[i] + 2 }
-
-	totalWidth := func(l, r int) int {
-		w := 2 // left + right border
-		for i := l; i < r; i++ {
-			w += colContent(i)
-			if i < r-1 {
-				w++ // separator between columns
-			}
-		}
-		return w
-	}
-
-	start = m.colOff
-	end = m.colOff + 1
-
-	// expand right
-	for end < len(m.colWidths) {
-		if totalWidth(start, end+1) > m.width {
-			break
-		}
-		end++
-	}
-
-	// expand left
-	for start > 0 {
-		if totalWidth(start-1, end) > m.width {
-			break
-		}
-		start--
-	}
-
-	return start, end
-}
-
-// wrapText wraps a string into lines of at most width runes.
-func wrapText(s string, width int, maxLines int) []string {
-	if width <= 0 || maxLines <= 0 {
-		return []string{s}
-	}
-	var lines []string
-	for line := range strings.SplitSeq(s, "\n") {
-		runes := []rune(line)
-		for len(runes) > 0 {
-			if len(lines) >= maxLines {
-				// Truncate the last rendered line with "..."
-				lastIdx := len(lines) - 1
-				lastLine := []rune(lines[lastIdx])
-				if len(lastLine) > 3 {
-					lines[lastIdx] = string(lastLine[:len(lastLine)-3]) + "..."
-				} else {
-					lines[lastIdx] = "..."
-				}
-				return lines
-			}
-			if len(runes) <= width {
-				lines = append(lines, string(runes))
-				break
-			}
-			lines = append(lines, string(runes[:width]))
-			runes = runes[width:]
-		}
-	}
-	if len(lines) == 0 {
-		lines = []string{""}
-	}
-	return lines
+	m.offset = 0
+	m.colOff = 0
+	m.calcColWidths()
+	m.calcMaxRowLines()
+	m.ensureVisible()
 }
 
 func (m model) View() tea.View {
@@ -443,7 +479,6 @@ func (m model) View() tea.View {
 	availLines := m.availDataLines()
 	renderedLines := 0
 	for ri := startRow; ri < endRow; ri++ {
-		// Wrap each cell's content to fit column width
 		cellLines := make([][]string, len(m.colWidths))
 		maxLines := 1
 		for ci := colStart; ci < colEnd; ci++ {
@@ -458,7 +493,6 @@ func (m model) View() tea.View {
 			}
 		}
 
-		// Render each wrapped line, capped to available screen lines
 		for li := 0; li < maxLines && renderedLines < availLines; li++ {
 			b.WriteByte('\n')
 			b.WriteString(borderStyle.Render("│"))
@@ -482,7 +516,6 @@ func (m model) View() tea.View {
 			renderedLines++
 		}
 
-		// row separator
 		if ri < endRow-1 && renderedLines < availLines {
 			b.WriteByte('\n')
 			b.WriteString(borderStyle.Render("├"))
@@ -509,15 +542,10 @@ func (m model) View() tea.View {
 	b.WriteString(borderStyle.Render("┘"))
 	b.WriteByte('\n')
 
-	// status line
-	statusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
-	statusStr := fmt.Sprintf(" Rows %d-%d / %d  Cols %d-%d / %d",
-		startRow+1, endRow, len(m.config.Rows),
-		colStart+1, colEnd, len(m.config.Headers))
-	b.WriteString(statusStyle.Render(statusStr))
-	b.WriteByte('\n')
+	tableBody := b.String()
 
-	tableStr := b.String()
+	// horizontal centering (table body only)
+	leftPad := 0
 	if m.width > 0 {
 		tableWidth := 2
 		for i, w := range visCols {
@@ -527,31 +555,253 @@ func (m model) View() tea.View {
 			}
 		}
 		if tableWidth <= m.width {
-			leftPad := (m.width - tableWidth) / 2
-			if leftPad > 0 {
-				lines := strings.Split(tableStr, "\n")
-				for i, line := range lines {
-					lines[i] = strings.Repeat(" ", leftPad) + line
-				}
-				tableStr = strings.Join(lines, "\n")
-			}
+			leftPad = (m.width - tableWidth) / 2
 		}
 	}
+
+	// center the table body
+	if leftPad > 0 {
+		lines := strings.Split(tableBody, "\n")
+		for i, line := range lines {
+			lines[i] = strings.Repeat(" ", leftPad) + line
+		}
+		tableBody = strings.Join(lines, "\n")
+	}
+
+	// build footer (info + hints + error + prompt) with same left padding
+	var footer strings.Builder
+	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+	hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("75"))
+
+	if leftPad > 0 {
+		footer.WriteString(strings.Repeat(" ", leftPad))
+	}
+	// line 1: row/col info
+	footer.WriteString(helpStyle.Render(fmt.Sprintf("Rows %d-%d / %d  Cols %d-%d / %d",
+		startRow+1, endRow, len(m.config.Rows),
+		colStart+1, colEnd, len(m.config.Headers))))
+	footer.WriteByte('\n')
+
+	if leftPad > 0 {
+		footer.WriteString(strings.Repeat(" ", leftPad))
+	}
+	// line 2: action hints
+	if m.level == 0 {
+		footer.WriteString(hintStyle.Render("[c]create  [r]rename  [d]drop"))
+	} else {
+		footer.WriteString(hintStyle.Render("[p]put  [x]delete"))
+	}
+	footer.WriteByte('\n')
+
+	// action error message (auto-expires)
+	if m.actionErr != "" && time.Now().Before(m.errUntil) {
+		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("203"))
+		if leftPad > 0 {
+			footer.WriteString(strings.Repeat(" ", leftPad))
+		}
+		footer.WriteString(errStyle.Render(m.actionErr))
+		footer.WriteByte('\n')
+	}
+
+	// inline prompt
+	if m.prompt != promptNone {
+		footer.WriteByte('\n')
+		if leftPad > 0 {
+			footer.WriteString(strings.Repeat(" ", leftPad))
+		}
+		footer.WriteString(m.promptInput.View())
+		footer.WriteByte('\n')
+	}
+
+	fullStr := tableBody + "\n" + footer.String()
 
 	// vertical centering: pad top when table is smaller than terminal height
 	if m.height > 0 {
-		tableLines := strings.Count(tableStr, "\n") + 1
+		tableLines := strings.Count(fullStr, "\n") + 1
 		if tableLines < m.height {
 			topPad := (m.height - tableLines) / 2
 			if topPad > 0 {
-				tableStr = strings.Repeat("\n", topPad) + tableStr
+				fullStr = strings.Repeat("\n", topPad) + fullStr
 			}
 		}
 	}
 
-	v := tea.NewView(tableStr)
+	v := tea.NewView(fullStr)
 	v.AltScreen = true
 	return v
+}
+
+// (the rest of the functions - calcColWidths, availDataLines, calcMaxRowLines,
+//  rowHeight, visibleRowRange, ensureVisible, visibleCols, wrapText, scrollHint -
+//  remain unchanged from the original)
+
+func (m *model) calcColWidths() {
+	m.colWidths = make([]int, len(m.config.Headers))
+
+	const maxColWidth = 30
+
+	for i, h := range m.config.Headers {
+		w := lipgloss.Width(h)
+		for _, row := range m.config.Rows {
+			if i < len(row) {
+				cw := lipgloss.Width(row[i])
+				if cw > w {
+					w = cw
+				}
+			}
+		}
+		if w > maxColWidth {
+			w = maxColWidth
+		}
+		m.colWidths[i] = w
+	}
+}
+
+func (m *model) availDataLines() int {
+	return max(1, m.height-6)
+}
+
+func (m *model) calcMaxRowLines() {
+	if m.height <= 0 {
+		m.maxRowLines = 999
+		return
+	}
+	availLines := m.availDataLines()
+	m.maxRowLines = max(1, (availLines-1)/2)
+}
+
+func (m *model) rowHeight(ri int) int {
+	if m.colWidths == nil || ri < 0 || ri >= len(m.config.Rows) {
+		return 1
+	}
+	maxLines := 1
+	for ci := range m.config.Headers {
+		if ci < len(m.config.Rows[ri]) {
+			w := lipgloss.Width(m.config.Rows[ri][ci])
+			if w > m.colWidths[ci] && m.colWidths[ci] > 0 {
+				lines := (w + m.colWidths[ci] - 1) / m.colWidths[ci]
+				if lines > maxLines {
+					maxLines = lines
+				}
+			}
+		}
+	}
+	if maxLines > m.maxRowLines {
+		maxLines = m.maxRowLines
+	}
+	return maxLines
+}
+
+func (m *model) visibleRowRange() (start, end int) {
+	start = m.offset
+	if start >= len(m.config.Rows) {
+		return
+	}
+	availLines := m.availDataLines()
+	used := 0
+	end = start
+	for end < len(m.config.Rows) {
+		rh := m.rowHeight(end)
+		sep := 0
+		if end > start {
+			sep = 1
+		}
+		if used+sep+rh > availLines {
+			if end == start {
+				end++
+			}
+			break
+		}
+		used += sep + rh
+		end++
+	}
+	return
+}
+
+func (m *model) ensureVisible() {
+	if m.cursor < m.offset {
+		m.offset = m.cursor
+		return
+	}
+
+	for {
+		_, end := m.visibleRowRange()
+		if m.cursor < end {
+			return
+		}
+		if m.offset >= m.cursor {
+			m.offset = m.cursor
+			return
+		}
+		m.offset++
+	}
+}
+
+func (m model) visibleCols() (start, end int) {
+	if m.width <= 0 || len(m.colWidths) == 0 {
+		return 0, len(m.colWidths)
+	}
+
+	colContent := func(i int) int { return m.colWidths[i] + 2 }
+
+	totalWidth := func(l, r int) int {
+		w := 2
+		for i := l; i < r; i++ {
+			w += colContent(i)
+			if i < r-1 {
+				w++
+			}
+		}
+		return w
+	}
+
+	start = m.colOff
+	end = m.colOff + 1
+	for end < len(m.colWidths) {
+		if totalWidth(start, end+1) > m.width {
+			break
+		}
+		end++
+	}
+	for start > 0 {
+		if totalWidth(start-1, end) > m.width {
+			break
+		}
+		start--
+	}
+	return start, end
+}
+
+func wrapText(s string, width int, maxLines int) []string {
+	if width <= 0 || maxLines <= 0 {
+		return []string{s}
+	}
+	var lines []string
+	for line := range strings.SplitSeq(s, "\n") {
+		runes := []rune(line)
+		for len(runes) > 0 {
+			if len(lines) >= maxLines {
+				lastIdx := len(lines) - 1
+				lastLine := []rune(lines[lastIdx])
+				if len(lastLine) > 3 {
+					lines[lastIdx] = string(lastLine[:len(lastLine)-3]) + "..."
+				} else {
+					lines[lastIdx] = "..."
+				}
+				return lines
+			}
+			if len(runes) <= width {
+				lines = append(lines, string(runes))
+				break
+			}
+			lines = append(lines, string(runes[:width]))
+			runes = runes[width:]
+		}
+	}
+	if len(lines) == 0 {
+		lines = []string{""}
+	}
+	return lines
 }
 
 // 教程

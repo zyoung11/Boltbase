@@ -950,13 +950,63 @@ func interactiveMode(c *cli.Context) error {
 		}
 	}
 
+	// build bucket list refresh function
+	buildBuckets := func() table.TableConfig {
+		buckets, err := bolt.ListBuckets(db)
+		if err != nil {
+			return table.TableConfig{}
+		}
+		var rows [][]string
+		for _, b := range buckets {
+			if b == bolt.MetadataBucket {
+				continue
+			}
+			keyType, _ := bolt.GetKV(db, bolt.MetadataBucket, b)
+			rows = append(rows, []string{b, keyType})
+		}
+		return table.TableConfig{
+			Headers: []string{"Bucket Name", "Key Type"},
+			Rows:    rows,
+		}
+	}
+
 	// use single bubbletea program for both levels
 	_, selected := table.ShowInteractive(
-		table.TableConfig{
-			Headers: []string{"Bucket Name", "Key Type"},
-			Rows:    bucketRows,
-		},
+		buildBuckets(),
 		loadKV,
+		table.InteractiveCallbacks{
+			CreateBucket: func(name, keyType string) error {
+				if err := bolt.CreateBucket(db, name); err != nil {
+					return err
+				}
+				return bolt.PutKV(db, bolt.MetadataBucket, name, keyType)
+			},
+			RenameBucket: func(oldName, newName string) error {
+				value, err := bolt.GetKV(db, bolt.MetadataBucket, oldName)
+				if err != nil {
+					return err
+				}
+				if err := bolt.RenameBucket(db, oldName, newName); err != nil {
+					return err
+				}
+				bolt.DeleteKV(db, bolt.MetadataBucket, oldName)
+				bolt.PutKV(db, bolt.MetadataBucket, newName, value)
+				return nil
+			},
+			DropBucket: func(name string) error {
+				if err := bolt.DropBucket(db, name); err != nil {
+					return err
+				}
+				return bolt.DeleteKV(db, bolt.MetadataBucket, name)
+			},
+			PutKV: func(bucket, key, value string) error {
+				return bolt.PutKV(db, bucket, key, value)
+			},
+			DeleteKV: func(bucket, key string) error {
+				return bolt.DeleteKV(db, bucket, key)
+			},
+			ReloadBuckets: buildBuckets,
+		},
 	)
 
 	if selected != nil && selectedBucket != "" {
