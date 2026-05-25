@@ -129,7 +129,7 @@ func main() {
 							}
 							if outFmt == "print" {
 								for _, r := range rows {
-									fmt.Printf("[i] %-12s %s (%s keys)\n", r[0]+":", r[1], r[2])
+									fmt.Printf("%s %-12s %s (%s keys)\n", logger.InfoPrefix, r[0]+":", r[1], r[2])
 								}
 								return nil
 							}
@@ -160,8 +160,8 @@ func main() {
 								Rows:    rows,
 							})
 							if selected != nil {
-								fmt.Printf("[i] %-12s %s\n", "Database:", c.String("db"))
-								fmt.Printf("[i] %-12s %s (type: %s, %s keys)\n", "Bucket:", selected[0], selected[1], selected[2])
+								fmt.Printf("%s %-12s %s\n", logger.InfoPrefix, "Database:", c.String("db"))
+								fmt.Printf("%s %-12s %s (type: %s, %s keys)\n", logger.InfoPrefix, "Bucket:", selected[0], selected[1], selected[2])
 							}
 							return nil
 						},
@@ -321,8 +321,8 @@ func main() {
 						case "csv":
 							fmt.Printf("%s,%s\n", key, value)
 						case "print":
-							fmt.Printf("[i] %-12s %s\n", "Key:", key)
-							fmt.Printf("[i] %-12s %s\n", "Value:", value)
+							fmt.Printf("%s %-12s %s\n", logger.InfoPrefix, "Key:", key)
+							fmt.Printf("%s %-12s %s\n", logger.InfoPrefix, "Value:", value)
 						case "help":
 							l.Info("use -h/--help before positional arguments")
 						default:
@@ -619,7 +619,7 @@ func main() {
 					}
 					if f == "print" {
 						for i, name := range metricNames {
-							fmt.Printf("[i] %-20s %d\n", name+":", info[metricKeys[i]])
+							fmt.Printf("%s %-20s %d\n", logger.InfoPrefix, name+":", info[metricKeys[i]])
 						}
 						return nil
 					}
@@ -648,9 +648,9 @@ func main() {
 						Rows:    rows,
 					})
 					if selected != nil {
-						fmt.Printf("[i] %-20s %s\n", "Database:", c.String("db"))
-						fmt.Printf("[i] %-20s %s\n", "Bucket:", bucketName)
-						fmt.Printf("[i] %-20s %s\n", selected[0]+":", selected[1])
+						fmt.Printf("%s %-20s %s\n", logger.InfoPrefix, "Database:", c.String("db"))
+						fmt.Printf("%s %-20s %s\n", logger.InfoPrefix, "Bucket:", bucketName)
+						fmt.Printf("%s %-20s %s\n", logger.InfoPrefix, selected[0]+":", selected[1])
 					}
 					return nil
 				},
@@ -754,10 +754,10 @@ func showKVTable(db *boltLib.DB, bucketName, dbPath, format string, kv map[strin
 	if selected != nil {
 		count, _ := bolt.CountBucketKV(db, bucketName)
 		keyType, _ := bolt.GetKV(db, bolt.MetadataBucket, bucketName)
-		fmt.Printf("[i] %-12s %s\n", "Database:", dbPath)
-		fmt.Printf("[i] %-12s %s (type: %s, %d keys)\n", "Bucket:", bucketName, keyType, count)
-		fmt.Printf("[i] %-12s %s\n", "Key:", selected[0])
-		fmt.Printf("[i] %-12s %s\n", "Value:", selected[1])
+		fmt.Printf("%s %-12s %s\n", logger.InfoPrefix, "Database:", dbPath)
+		fmt.Printf("%s %-12s %s (type: %s, %d keys)\n", logger.InfoPrefix, "Bucket:", bucketName, keyType, count)
+		fmt.Printf("%s %-12s %s\n", logger.InfoPrefix, "Key:", selected[0])
+		fmt.Printf("%s %-12s %s\n", logger.InfoPrefix, "Value:", selected[1])
 	}
 }
 
@@ -821,10 +821,10 @@ func interactiveMode(c *cli.Context) error {
 	if selected != nil && selectedBucket != "" {
 		keyType, _ := bolt.GetKV(db, bolt.MetadataBucket, selectedBucket)
 		count, _ := bolt.CountBucketKV(db, selectedBucket)
-		fmt.Printf("[i] %-12s %s\n", "Database:", dbPath)
-		fmt.Printf("[i] %-12s %s (type: %s, %d keys)\n", "Bucket:", selectedBucket, keyType, count)
-		fmt.Printf("[i] %-12s %s\n", "Key:", selected[0])
-		fmt.Printf("[i] %-12s %s\n", "Value:", selected[1])
+		fmt.Printf("%s %-12s %s\n", logger.InfoPrefix, "Database:", dbPath)
+		fmt.Printf("%s %-12s %s (type: %s, %d keys)\n", logger.InfoPrefix, "Bucket:", selectedBucket, keyType, count)
+		fmt.Printf("%s %-12s %s\n", logger.InfoPrefix, "Key:", selected[0])
+		fmt.Printf("%s %-12s %s\n", logger.InfoPrefix, "Value:", selected[1])
 	}
 
 	return nil
