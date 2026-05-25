@@ -43,7 +43,8 @@ type InteractiveCallbacks struct {
 	DropBucket    func(name string) error
 	PutKV         func(bucket, key, value string) error
 	DeleteKV      func(bucket, key string) error
-	ReloadBuckets func() TableConfig // refresh after bucket changes
+	CheckKey      func(bucket, key string) (bool, error) // check if key exists
+	ReloadBuckets func() TableConfig                      // refresh after bucket changes
 }
 
 // ShowInteractive shows a two-level table hierarchy within a single bubbletea program,
@@ -89,6 +90,7 @@ const (
 	promptDropBucket
 	promptPutKey
 	promptPutValue
+	promptPutConfirm
 	promptDeleteKV
 )
 
@@ -253,12 +255,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "p":
 			if m.level == 1 && m.cb.PutKV != nil {
 				if m.currentType == "seq" || m.currentType == "time" {
-					// auto-generated key, skip to value prompt
 					m.startPrompt(promptPutValue, "Value:")
 				} else {
 					m.startPrompt(promptPutKey, "Key:")
 				}
 			}
+
 		case "x":
 			if m.level == 1 && m.cb.DeleteKV != nil && len(m.config.Rows) > 0 {
 				m.startPrompt(promptDeleteKV, "Delete '"+m.config.Rows[m.cursor][0]+"'? (y/n):")
@@ -356,9 +358,29 @@ func (m *model) handlePromptSubmit(val string) (tea.Model, tea.Cmd) {
 
 	case promptPutKey:
 		m.promptBuf = val
+		// check if key exists for string bucket
+		if m.cb.CheckKey != nil && m.currentBucket != "" {
+			exists, err := m.cb.CheckKey(m.currentBucket, val)
+			if err == nil && exists {
+				m.promptInput.SetValue("")
+				m.promptInput.Placeholder = "Key exists. Overwrite? (y/n):"
+				m.prompt = promptPutConfirm
+				return m, nil
+			}
+		}
 		m.promptInput.SetValue("")
 		m.promptInput.Placeholder = "Value:"
 		m.prompt = promptPutValue
+		return m, nil
+
+	case promptPutConfirm:
+		if val == "y" || val == "Y" {
+			m.promptInput.SetValue("")
+			m.promptInput.Placeholder = "Value:"
+			m.prompt = promptPutValue
+			return m, nil
+		}
+		m.prompt = promptNone
 		return m, nil
 
 	case promptPutValue:
@@ -404,6 +426,7 @@ func (m *model) handlePromptSubmit(val string) (tea.Model, tea.Cmd) {
 			m.calcMaxRowLines()
 		}
 		return m, nil
+
 	}
 
 	m.prompt = promptNone

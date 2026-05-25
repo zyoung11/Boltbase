@@ -1023,6 +1023,16 @@ func interactiveMode(c *cli.Context) error {
 				}
 				return bolt.DeleteKV(db, bucket, key)
 			},
+			CheckKey: func(bucket, key string) (bool, error) {
+				_, err := bolt.GetKV(db, bucket, key)
+				if err == bolt.ErrKeyNotFound {
+					return false, nil
+				}
+				if err != nil {
+					return false, err
+				}
+				return true, nil
+			},
 			ReloadBuckets: buildBuckets,
 		},
 	)
