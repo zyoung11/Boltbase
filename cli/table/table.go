@@ -183,6 +183,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentType = m.buckets.Rows[m.cursor][1]
 				kvConfig := m.loadKVTable()
 				m.level = 1
+				m.config = kvConfig
 				m.allRows = kvConfig.Rows
 				m.applySearch()
 				if m.kvCursors != nil {
