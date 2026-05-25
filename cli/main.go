@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -15,6 +16,14 @@ import (
 )
 
 var l logger.Logger
+
+func outputFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.BoolFlag{Name: "print", Usage: "Print output to terminal"},
+		&cli.BoolFlag{Name: "json", Usage: "Output in JSON format"},
+		&cli.BoolFlag{Name: "csv", Usage: "Output in CSV format"},
+	}
+}
 
 func main() {
 	app := &cli.App{
@@ -33,6 +42,7 @@ func main() {
 				Aliases: []string{"i"},
 				Usage:   "Interactive mode: browse buckets and keys",
 			},
+
 		},
 		Before: func(c *cli.Context) error {
 			db, err := bolt.OpenDB(c.String("db"))
@@ -91,6 +101,7 @@ func main() {
 					{
 						Name:  "list",
 						Usage: "List all buckets",
+						Flags: outputFlags(),
 						Action: func(c *cli.Context) error {
 							db := c.App.Metadata["db"].(*boltLib.DB)
 							buckets, err := bolt.ListBuckets(db)
@@ -102,20 +113,55 @@ func main() {
 								l.Info("No buckets found")
 								return nil
 							}
-							headers := []string{"Bucket Name", "Key Type"}
 							var rows [][]string
 							for _, b := range buckets {
 								if b == bolt.MetadataBucket {
 									continue
 								}
 								keyType, _ := bolt.GetKV(db, bolt.MetadataBucket, b)
-								rows = append(rows, []string{b, keyType})
+								count, _ := bolt.CountBucketKV(db, b)
+								rows = append(rows, []string{b, keyType, fmt.Sprintf("%d", count)})
 							}
-							_, selected := table.ShowTable(table.TableConfig{Headers: headers, Rows: rows})
+							outFmt := outputFormat(c)
+							if outFmt == "help" {
+								l.Info("use -h/--help before positional arguments")
+								return nil
+							}
+							if outFmt == "print" {
+								for _, r := range rows {
+									fmt.Printf("[i] %-12s %s (%s keys)\n", r[0]+":", r[1], r[2])
+								}
+								return nil
+							}
+							if outFmt == "json" {
+								type bEntry struct {
+									Name    string `json:"name"`
+									KeyType string `json:"keyType"`
+									Count   int    `json:"count"`
+								}
+								var list []bEntry
+								for _, r := range rows {
+									c, _ := strconv.Atoi(r[2])
+									list = append(list, bEntry{r[0], r[1], c})
+								}
+								out, _ := json.MarshalIndent(list, "", "  ")
+								fmt.Println(string(out))
+								return nil
+							}
+							if outFmt == "csv" {
+								fmt.Println("name,keyType,count")
+								for _, r := range rows {
+									fmt.Printf("%s,%s,%s\n", r[0], r[1], r[2])
+								}
+								return nil
+							}
+							_, selected := table.ShowTable(table.TableConfig{
+								Headers: []string{"Bucket Name", "Key Type", "Keys"},
+								Rows:    rows,
+							})
 							if selected != nil {
-								count, _ := bolt.CountBucketKV(db, selected[0])
 								fmt.Printf("[i] %-12s %s\n", "Database:", c.String("db"))
-								fmt.Printf("[i] %-12s %s (type: %s, %d keys)\n", "Bucket:", selected[0], selected[1], count)
+								fmt.Printf("[i] %-12s %s (type: %s, %s keys)\n", "Bucket:", selected[0], selected[1], selected[2])
 							}
 							return nil
 						},
@@ -240,6 +286,7 @@ func main() {
 						Name:      "get",
 						Usage:     "Get a value by key",
 						ArgsUsage: "<bucket> <key>",
+						Flags:     outputFlags(),
 						Action: func(c *cli.Context) error {
 							db := c.App.Metadata["db"].(*boltLib.DB)
 							if c.NArg() < 2 {
@@ -252,27 +299,36 @@ func main() {
 								l.Error(fmt.Sprintf("bucket '%s' not found", bucketName))
 								os.Exit(1)
 							}
-							if keyType == "seq" {
-								k, err := strconv.ParseUint(key, 10, 32)
-								if err != nil {
-									l.Error("key must be an unsigned integer for seq-type bucket")
-									os.Exit(1)
-								}
-								value, err := bolt.GetKVSeq(db, bucketName, uint32(k))
-								if err != nil {
-									l.Error(err.Error())
-									os.Exit(1)
-								}
-								fmt.Println(value)
-							} else {
-								value, err := bolt.GetKV(db, bucketName, key)
-								if err != nil {
-									l.Error(err.Error())
-									os.Exit(1)
-								}
-								fmt.Println(value)
+							var value string
+						if keyType == "seq" {
+							k, err := strconv.ParseUint(key, 10, 32)
+							if err != nil {
+								l.Error("key must be an unsigned integer for seq-type bucket")
+								os.Exit(1)
 							}
-							return nil
+							value, err = bolt.GetKVSeq(db, bucketName, uint32(k))
+						} else {
+							value, err = bolt.GetKV(db, bucketName, key)
+						}
+						if err != nil {
+							l.Error(err.Error())
+							os.Exit(1)
+						}
+						switch outputFormat(c) {
+						case "json":
+							out, _ := json.MarshalIndent(map[string]string{"key": key, "value": value}, "", "  ")
+							fmt.Println(string(out))
+						case "csv":
+							fmt.Printf("%s,%s\n", key, value)
+						case "print":
+							fmt.Printf("[i] %-12s %s\n", "Key:", key)
+							fmt.Printf("[i] %-12s %s\n", "Value:", value)
+						case "help":
+							l.Info("use -h/--help before positional arguments")
+						default:
+							fmt.Println(value)
+						}
+						return nil
 						},
 					},
 					{
@@ -315,6 +371,7 @@ func main() {
 						Name:      "prefix",
 						Usage:     "Scan keys by prefix",
 						ArgsUsage: "<bucket> <prefix>",
+						Flags:     outputFlags(),
 						Action: func(c *cli.Context) error {
 							db := c.App.Metadata["db"].(*boltLib.DB)
 							if c.NArg() < 2 {
@@ -342,7 +399,7 @@ func main() {
 								l.Error(err.Error())
 								os.Exit(1)
 							}
-							showKVTable(db, bucketName, c.String("db"), kv)
+							showKVTable(db, bucketName, c.String("db"), outputFormat(c), kv)
 							return nil
 						},
 					},
@@ -350,6 +407,7 @@ func main() {
 						Name:      "range",
 						Usage:     "Scan keys in a range",
 						ArgsUsage: "<bucket> <start> <end>",
+						Flags:     outputFlags(),
 						Action: func(c *cli.Context) error {
 							db := c.App.Metadata["db"].(*boltLib.DB)
 							if c.NArg() < 3 {
@@ -374,7 +432,7 @@ func main() {
 								l.Error(err.Error())
 								os.Exit(1)
 							}
-							showKVTable(db, bucketName, c.String("db"), kv)
+							showKVTable(db, bucketName, c.String("db"), outputFormat(c), kv)
 							return nil
 						},
 					},
@@ -382,6 +440,7 @@ func main() {
 						Name:      "all",
 						Usage:     "Scan all key-value pairs in a bucket",
 						ArgsUsage: "<bucket>",
+						Flags:     outputFlags(),
 						Action: func(c *cli.Context) error {
 							db := c.App.Metadata["db"].(*boltLib.DB)
 							if c.NArg() < 1 {
@@ -404,7 +463,7 @@ func main() {
 								l.Error(err.Error())
 								os.Exit(1)
 							}
-							showKVTable(db, bucketName, c.String("db"), kv)
+							showKVTable(db, bucketName, c.String("db"), outputFormat(c), kv)
 							return nil
 						},
 					},
@@ -412,6 +471,7 @@ func main() {
 						Name:      "part",
 						Usage:     "Scan a portion of key-value pairs",
 						ArgsUsage: "<bucket> <start> <step>",
+						Flags:     outputFlags(),
 						Action: func(c *cli.Context) error {
 							db := c.App.Metadata["db"].(*boltLib.DB)
 							if c.NArg() < 3 {
@@ -436,7 +496,7 @@ func main() {
 								l.Error(err.Error())
 								os.Exit(1)
 							}
-							showKVTable(db, bucketName, c.String("db"), kv)
+							showKVTable(db, bucketName, c.String("db"), outputFormat(c), kv)
 							return nil
 						},
 					},
@@ -444,6 +504,7 @@ func main() {
 						Name:      "count",
 						Usage:     "Count key-value pairs in a bucket",
 						ArgsUsage: "<bucket>",
+						Flags:     outputFlags(),
 						Action: func(c *cli.Context) error {
 							db := c.App.Metadata["db"].(*boltLib.DB)
 							if c.NArg() < 1 {
@@ -456,7 +517,17 @@ func main() {
 								l.Error(err.Error())
 								os.Exit(1)
 							}
-							l.Info(fmt.Sprintf("Total: %d", count))
+							switch outputFormat(c) {
+							case "json":
+								out, _ := json.MarshalIndent(map[string]any{"bucket": bucketName, "count": count}, "", "  ")
+								fmt.Println(string(out))
+							case "csv":
+								fmt.Printf("%s,%d\n", bucketName, count)
+							case "help":
+								l.Info("use -h/--help before positional arguments")
+							case "print", "table":
+								l.Info(fmt.Sprintf("Total: %d", count))
+							}
 							return nil
 						},
 					},
@@ -526,6 +597,7 @@ func main() {
 				Name:      "info",
 				Usage:     "Show bucket statistics",
 				ArgsUsage: "<bucket>",
+				Flags:     outputFlags(),
 				Action: func(c *cli.Context) error {
 					db := c.App.Metadata["db"].(*boltLib.DB)
 					if c.NArg() < 1 {
@@ -538,20 +610,38 @@ func main() {
 						l.Error(err.Error())
 						os.Exit(1)
 					}
-					rows := [][]string{
-						{"KeyN", fmt.Sprintf("%d", info["KeyN"])},
-						{"Depth", fmt.Sprintf("%d", info["Depth"])},
-						{"BucketN", fmt.Sprintf("%d", info["BucketN"])},
-						{"LeafPageN", fmt.Sprintf("%d", info["LeafPageN"])},
-						{"LeafAlloc", fmt.Sprintf("%d", info["LeafAlloc"])},
-						{"LeafInuse", fmt.Sprintf("%d", info["LeafInuse"])},
-						{"BranchPageN", fmt.Sprintf("%d", info["BranchPageN"])},
-						{"BranchAlloc", fmt.Sprintf("%d", info["BranchAlloc"])},
-						{"BranchInuse", fmt.Sprintf("%d", info["BranchInuse"])},
-						{"LeafOverflowN", fmt.Sprintf("%d", info["LeafOverflowN"])},
-						{"BranchOverflowN", fmt.Sprintf("%d", info["BranchOverflowN"])},
-						{"InlineBucketN", fmt.Sprintf("%d", info["InlineBucketN"])},
-						{"InlineBucketInuse", fmt.Sprintf("%d", info["InlineBucketInuse"])},
+					metricNames := []string{"KeyN", "Depth", "BucketN", "LeafPageN", "LeafAlloc", "LeafInuse", "BranchPageN", "BranchAlloc", "BranchInuse", "LeafOverflowN", "BranchOverflowN", "InlineBucketN", "InlineBucketInuse"}
+					metricKeys := []string{"KeyN", "Depth", "BucketN", "LeafPageN", "LeafAlloc", "LeafInuse", "BranchPageN", "BranchAlloc", "BranchInuse", "LeafOverflowN", "BranchOverflowN", "InlineBucketN", "InlineBucketInuse"}
+					f := outputFormat(c)
+					if f == "help" {
+						l.Info("use -h/--help before positional arguments")
+						return nil
+					}
+					if f == "print" {
+						for i, name := range metricNames {
+							fmt.Printf("[i] %-20s %d\n", name+":", info[metricKeys[i]])
+						}
+						return nil
+					}
+					if f == "json" {
+						stats := make(map[string]int)
+						for i, name := range metricNames {
+							stats[name] = info[metricKeys[i]]
+						}
+						out, _ := json.MarshalIndent(map[string]any{"bucket": bucketName, "stats": stats}, "", "  ")
+						fmt.Println(string(out))
+						return nil
+					}
+					if f == "csv" {
+						fmt.Println("metric,value")
+						for i, name := range metricNames {
+							fmt.Printf("%s,%d\n", name, info[metricKeys[i]])
+						}
+						return nil
+					}
+					var rows [][]string
+					for i, name := range metricNames {
+						rows = append(rows, []string{name, fmt.Sprintf("%d", info[metricKeys[i]])})
 					}
 					_, selected := table.ShowTable(table.TableConfig{
 						Headers: []string{"Metric", "Value"},
@@ -574,11 +664,82 @@ func main() {
 	}
 }
 
-func showKVTable(db *boltLib.DB, bucketName, dbPath string, kv map[string]string) {
+func outputFormat(c *cli.Context) string {
+	// Check via os.Args first (works regardless of flag position)
+	for _, arg := range os.Args {
+		switch arg {
+		case "--json":
+			return "json"
+		case "--csv":
+			return "csv"
+		case "--print":
+			return "print"
+		case "-h", "--help":
+			return "help"
+		}
+	}
+	// Fallback to urfave/cli parsing (flags before positional args)
+	switch {
+	case c.Bool("json"):
+		return "json"
+	case c.Bool("csv"):
+		return "csv"
+	case c.Bool("print"):
+		return "print"
+	default:
+		return "table"
+	}
+}
+
+func printKV(kv map[string]string) {
+	keys := make([]string, 0, len(kv))
+	for k := range kv {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Printf("%s = %s\n", k, kv[k])
+	}
+}
+
+func jsonKV(kv map[string]string) {
+	out, _ := json.MarshalIndent(kv, "", "  ")
+	fmt.Println(string(out))
+}
+
+func csvKV(kv map[string]string) {
+	keys := make([]string, 0, len(kv))
+	for k := range kv {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Printf("%s,%s\n", k, kv[k])
+	}
+}
+
+func showKVTable(db *boltLib.DB, bucketName, dbPath, format string, kv map[string]string) {
 	if len(kv) == 0 {
 		l.Info("No results")
 		return
 	}
+
+	switch format {
+	case "print":
+		printKV(kv)
+		return
+	case "json":
+		jsonKV(kv)
+		return
+	case "csv":
+		csvKV(kv)
+		return
+	case "help":
+		l.Info("use -h/--help before positional arguments")
+		return
+	}
+
+	// default: interactive table
 	headers := []string{"Key", "Value"}
 	keys := make([]string, 0, len(kv))
 	for k := range kv {
@@ -638,6 +799,6 @@ func interactiveMode(c *cli.Context) error {
 		return err
 	}
 
-	showKVTable(db, bucketName, dbPath, kv)
+	showKVTable(db, bucketName, dbPath, outputFormat(c), kv)
 	return nil
 }
