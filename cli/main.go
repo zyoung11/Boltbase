@@ -105,8 +105,8 @@ func main() {
 							_, selected := table.ShowTable(table.TableConfig{Headers: headers, Rows: rows})
 							if selected != nil {
 								count, _ := bolt.CountBucketKV(db, selected[0])
-								l.Info(fmt.Sprintf("Database: %s", c.String("db")))
-								l.Info(fmt.Sprintf("Bucket: %s  (type: %s, %d keys)", selected[0], selected[1], count))
+								fmt.Printf("[i] %-12s %s\n", "Database:", c.String("db"))
+								fmt.Printf("[i] %-12s %s (type: %s, %d keys)\n", "Bucket:", selected[0], selected[1], count)
 							}
 							return nil
 						},
@@ -549,9 +549,9 @@ func main() {
 						Rows:    rows,
 					})
 					if selected != nil {
-						l.Info(fmt.Sprintf("Database: %s", c.String("db")))
-						l.Info(fmt.Sprintf("Bucket: %s", bucketName))
-						l.Info(fmt.Sprintf("%s: %s", selected[0], selected[1]))
+						fmt.Printf("[i] %-20s %s\n", "Database:", c.String("db"))
+						fmt.Printf("[i] %-20s %s\n", "Bucket:", bucketName)
+						fmt.Printf("[i] %-20s %s\n", selected[0]+":", selected[1])
 					}
 					return nil
 				},
@@ -579,9 +579,9 @@ func showKVTable(db *boltLib.DB, bucketName, dbPath string, kv map[string]string
 	if selected != nil {
 		count, _ := bolt.CountBucketKV(db, bucketName)
 		keyType, _ := bolt.GetKV(db, bolt.MetadataBucket, bucketName)
-		l.Info(fmt.Sprintf("Database: %s", dbPath))
-		l.Info(fmt.Sprintf("Bucket: %s  (type: %s, %d keys)", bucketName, keyType, count))
-		l.Info(fmt.Sprintf("Key: %s", selected[0]))
-		l.Info(fmt.Sprintf("Value: %s", selected[1]))
+		fmt.Printf("[i] %-12s %s\n", "Database:", dbPath)
+		fmt.Printf("[i] %-12s %s (type: %s, %d keys)\n", "Bucket:", bucketName, keyType, count)
+		fmt.Printf("[i] %-12s %s\n", "Key:", selected[0])
+		fmt.Printf("[i] %-12s %s\n", "Value:", selected[1])
 	}
 }
