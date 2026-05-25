@@ -112,6 +112,7 @@ type model struct {
 	kvCursors    map[string]int // per-bucket KV cursor memory
 	kvOffsets    map[string]int // per-bucket KV scroll offset memory
 	currentBucket string         // bucket being viewed in level 1
+	currentType  string         // key type of current bucket (string/seq/time)
 
 	// inline prompt fields
 	prompt      promptState
@@ -172,6 +173,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.prevBucket = m.cursor
 				bucketName := m.buckets.Rows[m.cursor][0]
 				m.currentBucket = bucketName
+				m.currentType = m.buckets.Rows[m.cursor][1]
 				kvConfig := m.loadKVTable()
 				m.level = 1
 				m.config = kvConfig
@@ -220,7 +222,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = 0
 			m.offset = 0
 		case "G":
-			m.cursor = len(m.config.Rows) - 1
+			if len(m.config.Rows) > 0 {
+				m.cursor = len(m.config.Rows) - 1
+			}
 			m.ensureVisible()
 		case "right", "l":
 			if _, colEnd := m.visibleCols(); colEnd < len(m.colWidths) {
@@ -248,7 +252,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// KV-level actions
 		case "p":
 			if m.level == 1 && m.cb.PutKV != nil {
-				m.startPrompt(promptPutKey, "Key:")
+				if m.currentType == "seq" || m.currentType == "time" {
+					// auto-generated key, skip to value prompt
+					m.startPrompt(promptPutValue, "Value:")
+				} else {
+					m.startPrompt(promptPutKey, "Key:")
+				}
 			}
 		case "x":
 			if m.level == 1 && m.cb.DeleteKV != nil && len(m.config.Rows) > 0 {
@@ -385,8 +394,10 @@ func (m *model) handlePromptSubmit(val string) (tea.Model, tea.Cmd) {
 		if m.currentBucket != "" {
 			kvConfig := m.loadKV(m.currentBucket)
 			m.config = kvConfig
-			if m.cursor >= len(kvConfig.Rows) {
+			if len(kvConfig.Rows) > 0 && m.cursor >= len(kvConfig.Rows) {
 				m.cursor = len(kvConfig.Rows) - 1
+			} else if len(kvConfig.Rows) == 0 {
+				m.cursor = 0
 			}
 			m.offset = 0
 			m.calcColWidths()

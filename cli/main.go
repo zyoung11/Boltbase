@@ -1000,9 +1000,27 @@ func interactiveMode(c *cli.Context) error {
 				return bolt.DeleteKV(db, bolt.MetadataBucket, name)
 			},
 			PutKV: func(bucket, key, value string) error {
-				return bolt.PutKV(db, bucket, key, value)
+				keyType, _ := bolt.GetKV(db, bolt.MetadataBucket, bucket)
+				switch keyType {
+				case "seq":
+					_, err := bolt.PutSeq(db, bucket, value)
+					return err
+				case "time":
+					_, err := bolt.PutTime(db, bucket, value)
+					return err
+				default:
+					return bolt.PutKV(db, bucket, key, value)
+				}
 			},
 			DeleteKV: func(bucket, key string) error {
+				keyType, _ := bolt.GetKV(db, bolt.MetadataBucket, bucket)
+				if keyType == "seq" {
+					k, err := strconv.ParseUint(key, 10, 32)
+					if err != nil {
+						return err
+					}
+					return bolt.DeleteKVSeq(db, bucket, uint32(k))
+				}
 				return bolt.DeleteKV(db, bucket, key)
 			},
 			ReloadBuckets: buildBuckets,
