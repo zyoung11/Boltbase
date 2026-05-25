@@ -92,6 +92,7 @@ const (
 	promptPutValue
 	promptPutConfirm
 	promptDeleteKV
+	promptSearch
 )
 
 type model struct {
@@ -122,6 +123,10 @@ type model struct {
 	promptBuf   string    // stores first input value while waiting for second
 	actionErr   string    // error message to display after an action
 	errUntil    time.Time // show actionErr until this time
+
+	// search
+	searchQuery string
+	allRows     [][]string // full data before search filter
 }
 
 func (m *model) loadKVTable() TableConfig {
@@ -178,7 +183,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentType = m.buckets.Rows[m.cursor][1]
 				kvConfig := m.loadKVTable()
 				m.level = 1
-				m.config = kvConfig
+				m.allRows = kvConfig.Rows
+				m.applySearch()
 				if m.kvCursors != nil {
 					m.cursor = m.kvCursors[bucketName]
 					m.offset = m.kvOffsets[bucketName]
@@ -261,6 +267,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
+		case "/":
+			if m.level == 1 {
+				if m.searchQuery != "" {
+					// clear search on second /
+					m.searchQuery = ""
+					m.config.Rows = m.allRows
+					m.cursor = 0
+					m.offset = 0
+					m.calcColWidths()
+					m.calcMaxRowLines()
+				} else {
+					m.startPrompt(promptSearch, "Search:")
+				}
+			}
 		case "x":
 			if m.level == 1 && m.cb.DeleteKV != nil && len(m.config.Rows) > 0 {
 				m.startPrompt(promptDeleteKV, "Delete '"+m.config.Rows[m.cursor][0]+"'? (y/n):")
@@ -287,6 +307,11 @@ func (m *model) startPrompt(state promptState, placeholder string) {
 func (m *model) handlePromptKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c", "esc":
+		if m.prompt == promptSearch && m.searchQuery != "" {
+			// esc during search clears the search too
+			m.searchQuery = ""
+			m.applySearch()
+		}
 		m.prompt = promptNone
 		return m, nil
 	case "enter":
@@ -394,11 +419,10 @@ func (m *model) handlePromptSubmit(val string) (tea.Model, tea.Cmd) {
 		// refresh KV table
 		if m.currentBucket != "" {
 			kvConfig := m.loadKV(m.currentBucket)
-			m.config = kvConfig
+			m.allRows = kvConfig.Rows
+			m.applySearch()
 			m.cursor = 0
 			m.offset = 0
-			m.calcColWidths()
-			m.calcMaxRowLines()
 		}
 		return m, nil
 
@@ -415,10 +439,11 @@ func (m *model) handlePromptSubmit(val string) (tea.Model, tea.Cmd) {
 		// refresh KV table
 		if m.currentBucket != "" {
 			kvConfig := m.loadKV(m.currentBucket)
-			m.config = kvConfig
-			if len(kvConfig.Rows) > 0 && m.cursor >= len(kvConfig.Rows) {
-				m.cursor = len(kvConfig.Rows) - 1
-			} else if len(kvConfig.Rows) == 0 {
+			m.allRows = kvConfig.Rows
+			m.applySearch()
+			if m.cursor >= len(m.config.Rows) && len(m.config.Rows) > 0 {
+				m.cursor = len(m.config.Rows) - 1
+			} else if len(m.config.Rows) == 0 {
 				m.cursor = 0
 			}
 			m.offset = 0
@@ -427,10 +452,42 @@ func (m *model) handlePromptSubmit(val string) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case promptSearch:
+		m.searchQuery = val
+		m.prompt = promptNone
+		m.applySearch()
+		if m.searchQuery == "" && len(m.config.Rows) > 0 {
+			m.cursor = 0
+			m.offset = 0
+		}
+		return m, nil
 	}
 
 	m.prompt = promptNone
 	return m, nil
+}
+
+// applySearch filters config.Rows by searchQuery and resets cursor.
+func (m *model) applySearch() {
+	if m.searchQuery == "" || len(m.allRows) == 0 {
+		m.config.Rows = m.allRows
+	} else {
+		q := strings.ToLower(m.searchQuery)
+		var filtered [][]string
+		for _, row := range m.allRows {
+			for _, cell := range row {
+				if strings.Contains(strings.ToLower(cell), q) {
+					filtered = append(filtered, row)
+					break
+				}
+			}
+		}
+		m.config.Rows = filtered
+	}
+	m.cursor = 0
+	m.offset = 0
+	m.calcColWidths()
+	m.calcMaxRowLines()
 }
 
 // refreshBuckets reloads the bucket list from the loadKV callback (using the first bucket as signal).
@@ -631,9 +688,16 @@ func (m model) View() tea.View {
 	}
 
 	// line 1: row/col info
-	infoText := fmt.Sprintf("Rows %d-%d / %d  Cols %d-%d / %d",
-		startRow+1, endRow, len(m.config.Rows),
-		colStart+1, colEnd, len(m.config.Headers))
+	var infoText string
+	if m.searchQuery != "" {
+		infoText = fmt.Sprintf("Search: \"%s\"  %d/%d results  Cols %d-%d / %d",
+			m.searchQuery, len(m.config.Rows), len(m.allRows),
+			colStart+1, colEnd, len(m.config.Headers))
+	} else {
+		infoText = fmt.Sprintf("Rows %d-%d / %d  Cols %d-%d / %d",
+			startRow+1, endRow, len(m.config.Rows),
+			colStart+1, colEnd, len(m.config.Headers))
+	}
 	footer.WriteString(centerPad(infoText))
 	footer.WriteString(infoStyle.Render(infoText))
 	footer.WriteByte('\n')
@@ -642,8 +706,10 @@ func (m model) View() tea.View {
 	var hintText string
 	if m.level == 0 {
 		hintText = "[c]create  [r]rename  [d]drop"
+	} else if m.searchQuery != "" {
+		hintText = "[/]search  [p]put  [x]delete  [q]back"
 	} else {
-		hintText = "[p]put  [x]delete"
+		hintText = "[/]search  [p]put  [x]delete"
 	}
 	footer.WriteString(centerPad(hintText))
 	footer.WriteString(infoStyle.Render(hintText))
