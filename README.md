@@ -1,22 +1,76 @@
 # Boltbase
 
+基于 [boltdb](https://github.com/boltdb/bolt) 的嵌入式键值存储，提供 CLI 和 HTTP API 两种使用方式。
+
 ## 导航
 
-* [一、功能特性](#一功能特性)
-* [二、快速开始](#二快速开始)
-* [三、认证系统](#三认证系统)
-* [四、API 文档](#四api-文档)
-  * [1. 健康检查](#1-健康检查)
-  * [2. 认证管理](#2-认证管理)
-  * [3. Bucket 管理](#3-bucket-管理)
-  * [4. Key-Value 操作](#4-key-value-操作)
-  * [5. 数据查询](#5-数据查询)
-  * [6. 信息与导出](#6-信息与导出)
-  * [7. 数据导入](#7-数据导入)
+* [一、boltcli — CLI 工具](#一boltcli--cli-工具)
+* [二、功能特性](#二功能特性)
+* [三、快速开始](#三快速开始)
+* [四、认证系统](#四认证系统)
+* [五、API 文档](#五api-文档)
 
 ---
 
-## 一、功能特性
+## 一、boltcli — CLI 工具
+
+`cli/` 目录下的命令行工具，直接操作 `.db` 文件，无需启动服务。
+
+### 安装
+
+```bash
+cd cli
+go build -ldflags="-s -w" -o boltcli .
+```
+
+### 使用
+
+```bash
+# 交互模式（默认）
+./boltcli --db testdata.db
+
+# 或使用子命令
+./boltcli --db testdata.db bucket list
+./boltcli --db testdata.db kv count users
+```
+
+### 命令
+
+| 命令 | 说明 |
+|------|------|
+| `bucket create <name> <keyType>` | 创建桶 (string\|seq\|time) |
+| `bucket list` | 列出桶 |
+| `bucket rename <old> <new>` | 重命名桶 |
+| `bucket drop <name>` | 删除桶 |
+| `kv get <bucket> <key>` | 获取值 |
+| `kv put <bucket> <key> <value> [--update]` | 写入 (seq/time 自动生成 key) |
+| `kv delete <bucket> <key>` | 删除 |
+| `kv prefix <bucket> <prefix>` | 前缀扫描 |
+| `kv range <bucket> <start> <end>` | 范围扫描 |
+| `kv all <bucket>` | 全部扫描 |
+| `kv part <bucket> <start> <step>` | 分页扫描 |
+| `kv count <bucket>` | 计数 |
+| `export [--out <path>]` | 导出 JSON |
+| `import <path>` | 增量导入 |
+| `import-replace <path>` | 替换导入 |
+| `info <bucket>` | 桶统计 |
+
+### 输出格式
+
+支持 `--print` / `--json` / `--csv`（默认交互式表格）。
+
+```bash
+./boltcli --db test.db kv count --json users
+./boltcli --db test.db kv all config --print
+```
+
+---
+
+# Boltbase — HTTP API 服务
+
+---
+
+## 二、功能特性
 
 > [!NOTE]
 > 
@@ -40,7 +94,7 @@
 
 ---
 
-## 二、快速开始
+## 三、快速开始
 
 ### 1. 环境准备
 
@@ -82,7 +136,7 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 
 ---
 
-## 三、认证系统
+## 四、认证系统
 
 > [!NOTE]
 > 
@@ -125,7 +179,7 @@ Boltbase 的数据将存储在运行目录下的 `Boltbase.db` 文件中。
 
 ---
 
-## 四、API 文档
+## 五、API 文档
 
 > [!NOTE]
 > 
