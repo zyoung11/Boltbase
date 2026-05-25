@@ -606,36 +606,53 @@ func (m model) View() tea.View {
 		tableBody = strings.Join(lines, "\n")
 	}
 
-	// build footer (info + hints + error + prompt) with same left padding
+	// build footer (info + hints + error + prompt) centered within table width
 	var footer strings.Builder
 	infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("250"))
 
-	if leftPad > 0 {
-		footer.WriteString(strings.Repeat(" ", leftPad))
+	// compute table width (same as body centering above)
+	tableWidth := 2
+	for i, w := range visCols {
+		tableWidth += w + 2
+		if i > 0 {
+			tableWidth++
+		}
 	}
+
+	centerPad := func(s string) string {
+		if leftPad <= 0 || tableWidth <= 0 {
+			return ""
+		}
+		w := lipgloss.Width(s)
+		if w >= tableWidth {
+			return strings.Repeat(" ", leftPad)
+		}
+		return strings.Repeat(" ", leftPad+(tableWidth-w)/2)
+	}
+
 	// line 1: row/col info
-	footer.WriteString(infoStyle.Render(fmt.Sprintf("Rows %d-%d / %d  Cols %d-%d / %d",
+	infoText := fmt.Sprintf("Rows %d-%d / %d  Cols %d-%d / %d",
 		startRow+1, endRow, len(m.config.Rows),
-		colStart+1, colEnd, len(m.config.Headers))))
+		colStart+1, colEnd, len(m.config.Headers))
+	footer.WriteString(centerPad(infoText))
+	footer.WriteString(infoStyle.Render(infoText))
 	footer.WriteByte('\n')
 
-	if leftPad > 0 {
-		footer.WriteString(strings.Repeat(" ", leftPad))
-	}
 	// line 2: action hints
+	var hintText string
 	if m.level == 0 {
-		footer.WriteString(infoStyle.Render("[c]create  [r]rename  [d]drop"))
+		hintText = "[c]create  [r]rename  [d]drop"
 	} else {
-		footer.WriteString(infoStyle.Render("[p]put  [x]delete"))
+		hintText = "[p]put  [x]delete"
 	}
+	footer.WriteString(centerPad(hintText))
+	footer.WriteString(infoStyle.Render(hintText))
 	footer.WriteByte('\n')
 
 	// action error message (auto-expires)
 	if m.actionErr != "" && time.Now().Before(m.errUntil) {
 		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("203"))
-		if leftPad > 0 {
-			footer.WriteString(strings.Repeat(" ", leftPad))
-		}
+		footer.WriteString(centerPad(m.actionErr))
 		footer.WriteString(errStyle.Render(m.actionErr))
 		footer.WriteByte('\n')
 	}
@@ -643,10 +660,9 @@ func (m model) View() tea.View {
 	// inline prompt
 	if m.prompt != promptNone {
 		footer.WriteByte('\n')
-		if leftPad > 0 {
-			footer.WriteString(strings.Repeat(" ", leftPad))
-		}
-		footer.WriteString(m.promptInput.View())
+		promptView := m.promptInput.View()
+		footer.WriteString(centerPad(promptView))
+		footer.WriteString(promptView)
 		footer.WriteByte('\n')
 	}
 
