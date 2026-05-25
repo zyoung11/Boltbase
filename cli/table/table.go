@@ -171,6 +171,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = m.prevBucket
 			m.offset = 0
 			m.colOff = 0
+			m.searchQuery = ""
+			m.allRows = nil
 			m.calcColWidths()
 			m.calcMaxRowLines()
 			m.ensureVisible()
