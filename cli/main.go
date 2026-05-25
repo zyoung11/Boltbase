@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 
 	"boltcli/bolt"
@@ -571,9 +572,14 @@ func showKVTable(db *boltLib.DB, bucketName, dbPath string, kv map[string]string
 		return
 	}
 	headers := []string{"Key", "Value"}
+	keys := make([]string, 0, len(kv))
+	for k := range kv {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
 	var rows [][]string
-	for k, v := range kv {
-		rows = append(rows, []string{k, v})
+	for _, k := range keys {
+		rows = append(rows, []string{k, kv[k]})
 	}
 	_, selected := table.ShowTable(table.TableConfig{Headers: headers, Rows: rows})
 	if selected != nil {
