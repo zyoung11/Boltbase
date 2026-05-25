@@ -515,6 +515,17 @@ func (m model) View() tea.View {
 		}
 	}
 
+	// vertical centering: pad top when table is smaller than terminal height
+	if m.height > 0 {
+		tableLines := strings.Count(tableStr, "\n") + 1
+		if tableLines < m.height {
+			topPad := (m.height - tableLines) / 2
+			if topPad > 0 {
+				tableStr = strings.Repeat("\n", topPad) + tableStr
+			}
+		}
+	}
+
 	v := tea.NewView(tableStr)
 	v.AltScreen = true
 	return v
