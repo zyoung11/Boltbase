@@ -44,6 +44,7 @@ func ShowInteractive(buckets TableConfig, loadKV func(string) TableConfig) (int,
 		buckets:     &buckets,
 		loadKV:      loadKV,
 		kvCursors:   make(map[string]int),
+		kvOffsets:   make(map[string]int),
 	}
 
 	p := tea.NewProgram(m)
@@ -74,12 +75,13 @@ type model struct {
 	maxRowLines int
 
 	// interactive two-level fields
-	level        int           // 0: bucket list, 1: kv table
+	level        int            // 0: bucket list, 1: kv table
 	buckets      *TableConfig
 	loadKV       func(string) TableConfig
-	prevBucket   int           // cursor in bucket list, restored when going back
+	prevBucket   int            // cursor in bucket list, restored when going back
 	kvCursors    map[string]int // per-bucket KV cursor memory
-	currentBucket string        // bucket being viewed in level 1
+	kvOffsets    map[string]int // per-bucket KV scroll offset memory
+	currentBucket string         // bucket being viewed in level 1
 }
 
 func (m *model) loadKVTable() TableConfig {
@@ -109,9 +111,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.level == 0 || m.buckets == nil {
 				return m, tea.Quit
 			}
-			// save KV cursor for current bucket, go back to bucket list
+			// save KV cursor and offset for current bucket, go back to bucket list
 			if m.currentBucket != "" {
 				m.kvCursors[m.currentBucket] = m.cursor
+				m.kvOffsets[m.currentBucket] = m.offset
 			}
 			m.level = 0
 			m.config = *m.buckets
@@ -136,13 +139,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.level = 1
 				m.config = kvConfig
-				// restore KV cursor for this bucket if previously visited
+				// restore KV cursor and offset for this bucket if previously visited
 				if m.kvCursors != nil {
 					m.cursor = m.kvCursors[bucketName]
+					m.offset = m.kvOffsets[bucketName]
 				} else {
 					m.cursor = 0
+					m.offset = 0
 				}
-				m.offset = 0
 				m.colOff = 0
 				m.calcColWidths()
 				m.calcMaxRowLines()
