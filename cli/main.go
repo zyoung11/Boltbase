@@ -28,6 +28,11 @@ func main() {
 				EnvVars: []string{"BOLT_DB_PATH"},
 				Usage:   "Path to BoltDB database file",
 			},
+			&cli.BoolFlag{
+				Name:    "interactive",
+				Aliases: []string{"i"},
+				Usage:   "Interactive mode: browse buckets and keys",
+			},
 		},
 		Before: func(c *cli.Context) error {
 			db, err := bolt.OpenDB(c.String("db"))
@@ -40,6 +45,9 @@ func main() {
 			}
 			c.App.Metadata["db"] = db
 			return nil
+		},
+		Action: func(c *cli.Context) error {
+			return interactiveMode(c)
 		},
 		After: func(c *cli.Context) error {
 			if db, ok := c.App.Metadata["db"].(*boltLib.DB); ok {
@@ -590,4 +598,46 @@ func showKVTable(db *boltLib.DB, bucketName, dbPath string, kv map[string]string
 		fmt.Printf("[i] %-12s %s\n", "Key:", selected[0])
 		fmt.Printf("[i] %-12s %s\n", "Value:", selected[1])
 	}
+}
+
+func interactiveMode(c *cli.Context) error {
+	db := c.App.Metadata["db"].(*boltLib.DB)
+
+	// Step 1: show bucket list
+	buckets, err := bolt.ListBuckets(db)
+	if err != nil {
+		return err
+	}
+	var rows [][]string
+	for _, b := range buckets {
+		if b == bolt.MetadataBucket {
+			continue
+		}
+		keyType, _ := bolt.GetKV(db, bolt.MetadataBucket, b)
+		rows = append(rows, []string{b, keyType})
+	}
+	_, selected := table.ShowTable(table.TableConfig{
+		Headers: []string{"Bucket Name", "Key Type"},
+		Rows:    rows,
+	})
+	if selected == nil {
+		return nil
+	}
+
+	// Step 2: show all KV for selected bucket
+	bucketName, keyType := selected[0], selected[1]
+	dbPath := c.String("db")
+
+	var kv map[string]string
+	if keyType == "seq" {
+		kv, err = bolt.ScanAllSeq(db, bucketName)
+	} else {
+		kv, err = bolt.ScanAll(db, bucketName)
+	}
+	if err != nil {
+		return err
+	}
+
+	showKVTable(db, bucketName, dbPath, kv)
+	return nil
 }
