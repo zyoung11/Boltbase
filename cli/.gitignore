@@ -1,3 +1,4 @@
 boltcli
 *.db
 bolttest
+boltcli.exe
