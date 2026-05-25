@@ -932,7 +932,7 @@ func interactiveMode(c *cli.Context) error {
 		} else {
 			kv, err = bolt.ScanAll(db, bucketName)
 		}
-		if err != nil || len(kv) == 0 {
+		if err != nil {
 			return table.TableConfig{}
 		}
 		keys := make([]string, 0, len(kv))

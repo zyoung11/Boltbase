@@ -173,9 +173,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				bucketName := m.buckets.Rows[m.cursor][0]
 				m.currentBucket = bucketName
 				kvConfig := m.loadKVTable()
-				if len(kvConfig.Rows) == 0 {
-					return m, nil
-				}
 				m.level = 1
 				m.config = kvConfig
 				if m.kvCursors != nil {
@@ -570,14 +567,13 @@ func (m model) View() tea.View {
 
 	// build footer (info + hints + error + prompt) with same left padding
 	var footer strings.Builder
-	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
-	hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("75"))
+	infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("250"))
 
 	if leftPad > 0 {
 		footer.WriteString(strings.Repeat(" ", leftPad))
 	}
 	// line 1: row/col info
-	footer.WriteString(helpStyle.Render(fmt.Sprintf("Rows %d-%d / %d  Cols %d-%d / %d",
+	footer.WriteString(infoStyle.Render(fmt.Sprintf("Rows %d-%d / %d  Cols %d-%d / %d",
 		startRow+1, endRow, len(m.config.Rows),
 		colStart+1, colEnd, len(m.config.Headers))))
 	footer.WriteByte('\n')
@@ -587,9 +583,9 @@ func (m model) View() tea.View {
 	}
 	// line 2: action hints
 	if m.level == 0 {
-		footer.WriteString(hintStyle.Render("[c]create  [r]rename  [d]drop"))
+		footer.WriteString(infoStyle.Render("[c]create  [r]rename  [d]drop"))
 	} else {
-		footer.WriteString(hintStyle.Render("[p]put  [x]delete"))
+		footer.WriteString(infoStyle.Render("[p]put  [x]delete"))
 	}
 	footer.WriteByte('\n')
 
