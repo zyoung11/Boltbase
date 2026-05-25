@@ -667,7 +667,7 @@ func main() {
 							case "help":
 								l.Info("use -h/--help before positional arguments")
 							case "print", "table":
-								l.Info(fmt.Sprintf("Total: %d", count))
+								fmt.Printf("%s %s%d\n", logger.InfoPrefix, coloredPad("Total:", 12, cLabel), count)
 							}
 							return nil
 						},
