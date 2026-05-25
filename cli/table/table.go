@@ -726,12 +726,13 @@ func (m model) View() tea.View {
 		footer.WriteByte('\n')
 	}
 
-	// inline prompt
+	// inline prompt (left-aligned to table)
 	if m.prompt != promptNone {
 		footer.WriteByte('\n')
-		promptView := m.promptInput.View()
-		footer.WriteString(centerPad(promptView))
-		footer.WriteString(promptView)
+		if leftPad > 0 {
+			footer.WriteString(strings.Repeat(" ", leftPad))
+		}
+		footer.WriteString(m.promptInput.View())
 		footer.WriteByte('\n')
 	}
 
