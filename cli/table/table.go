@@ -508,6 +508,13 @@ func (m model) View() tea.View {
 	// data rows (with text wrapping)
 	startRow, endRow := m.visibleRowRange()
 	availLines := m.availDataLines()
+	// leave room for prompt (blank line + input) and error message
+	if m.prompt != promptNone {
+		availLines -= 2 // blank line + input line
+	} else if m.actionErr != "" && time.Now().Before(m.errUntil) {
+		availLines -= 1
+	}
+	availLines = max(1, availLines)
 	renderedLines := 0
 	for ri := startRow; ri < endRow; ri++ {
 		cellLines := make([][]string, len(m.colWidths))
@@ -688,7 +695,7 @@ func (m *model) calcColWidths() {
 }
 
 func (m *model) availDataLines() int {
-	return max(1, m.height-6)
+	return max(1, m.height-8)
 }
 
 func (m *model) calcMaxRowLines() {
