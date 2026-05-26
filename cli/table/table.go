@@ -730,18 +730,28 @@ func (m model) View() tea.View {
 			return strings.Repeat(" ", leftPad)
 		}
 		if w > tableWidth {
-			// wider than table: center in terminal
 			return strings.Repeat(" ", (m.width-w)/2)
 		}
-		// fits within table: center within table width
 		return strings.Repeat(" ", leftPad+(tableWidth-w)/2)
 	}
 
-	// caller-provided footer lines
-	for _, line := range m.footerLines() {
-		footer.WriteString(centerPad(line))
+	// caller-provided footer lines (each independently centered)
+	footerLines := m.footerLines()
+	var pads []int
+	for _, line := range footerLines {
+		pad := len(centerPad(line))
+		pads = append(pads, pad)
+		footer.WriteString(strings.Repeat(" ", pad))
 		footer.WriteString(line)
 		footer.WriteByte('\n')
+	}
+
+	// find the leftmost start column among all footer lines for prompt alignment
+	promptPad := leftPad
+	for _, p := range pads {
+		if p < promptPad {
+			promptPad = p
+		}
 	}
 
 	// internal: action error message (auto-expires)
@@ -752,12 +762,11 @@ func (m model) View() tea.View {
 		footer.WriteByte('\n')
 	}
 
-	// internal: inline prompt (centered)
+	// internal: inline prompt (left-aligned to leftmost footer line)
 	if m.prompt != promptNone {
 		footer.WriteByte('\n')
-		promptView := m.promptInput.View()
-		footer.WriteString(centerPad(promptView))
-		footer.WriteString(promptView)
+		footer.WriteString(strings.Repeat(" ", promptPad))
+		footer.WriteString(m.promptInput.View())
 		footer.WriteByte('\n')
 	}
 
