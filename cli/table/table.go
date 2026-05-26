@@ -11,9 +11,23 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+// FooterInfo contains display state for custom footer rendering.
+type FooterInfo struct {
+	Level        int    // 0: bucket list, 1: kv table
+	SearchQuery  string
+	TotalRows    int    // all rows (before filter)
+	FilteredRows int    // visible rows (after filter)
+	StartRow     int    // first visible data row index (0-based)
+	EndRow       int    // last visible data row index (exclusive)
+	StartCol     int    // first visible column index
+	EndCol       int    // last visible column index (exclusive)
+	TotalCols    int    // total column count
+}
+
 type TableConfig struct {
 	Headers []string
 	Rows    [][]string
+	Footer  func(info FooterInfo) []string // optional: footer lines
 }
 
 func ShowTable(config TableConfig) (int, []string) {
@@ -45,6 +59,7 @@ type InteractiveCallbacks struct {
 	DeleteKV      func(bucket, key string) error
 	CheckKey      func(bucket, key string) (bool, error) // check if key exists
 	ReloadBuckets func() TableConfig                      // refresh after bucket changes
+	Footer        func(info FooterInfo) []string          // optional: footer lines
 }
 
 // ShowInteractive shows a two-level table hierarchy within a single bubbletea program,
@@ -470,6 +485,34 @@ func (m *model) handlePromptSubmit(val string) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// footerLines builds FooterInfo and calls the caller's Footer callback.
+func (m *model) footerLines() []string {
+	info := FooterInfo{
+		Level:       m.level,
+		SearchQuery: m.searchQuery,
+		TotalRows:   len(m.allRows),
+	}
+	// compute visible row range
+	if m.colWidths != nil {
+		start, end := m.visibleRowRange()
+		info.StartRow = start
+		info.EndRow = end
+		info.FilteredRows = len(m.config.Rows)
+		colStart, colEnd := m.visibleCols()
+		info.StartCol = colStart
+		info.EndCol = colEnd
+		info.TotalCols = len(m.config.Headers)
+	}
+
+	if m.config.Footer != nil {
+		return m.config.Footer(info)
+	}
+	if m.cb.Footer != nil {
+		return m.cb.Footer(info)
+	}
+	return nil
+}
+
 // applySearch filters config.Rows by searchQuery and resets cursor.
 func (m *model) applySearch() {
 	if m.searchQuery == "" || len(m.allRows) == 0 {
@@ -666,9 +709,8 @@ func (m model) View() tea.View {
 		tableBody = strings.Join(lines, "\n")
 	}
 
-	// build footer (info + hints + error + prompt) centered within table width
+	// build footer: caller-provided lines + internal error/prompt
 	var footer strings.Builder
-	infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("250"))
 
 	// compute table width (same as body centering above)
 	tableWidth := 2
@@ -684,45 +726,25 @@ func (m model) View() tea.View {
 			return ""
 		}
 		w := lipgloss.Width(s)
-		ref := tableWidth
-		if w > ref && m.width > 0 {
-			ref = m.width // wider than table, center in terminal instead
-		}
-		if w >= ref {
+		if w >= m.width {
 			return strings.Repeat(" ", leftPad)
 		}
-		return strings.Repeat(" ", leftPad+(ref-w)/2)
+		if w > tableWidth {
+			// wider than table: center in terminal
+			return strings.Repeat(" ", (m.width-w)/2)
+		}
+		// fits within table: center within table width
+		return strings.Repeat(" ", leftPad+(tableWidth-w)/2)
 	}
 
-	// line 1: row/col info
-	var infoText string
-	if m.searchQuery != "" {
-		infoText = fmt.Sprintf("Search: \"%s\"  %d/%d results  Cols %d-%d / %d",
-			m.searchQuery, len(m.config.Rows), len(m.allRows),
-			colStart+1, colEnd, len(m.config.Headers))
-	} else {
-		infoText = fmt.Sprintf("Rows %d-%d / %d  Cols %d-%d / %d",
-			startRow+1, endRow, len(m.config.Rows),
-			colStart+1, colEnd, len(m.config.Headers))
+	// caller-provided footer lines
+	for _, line := range m.footerLines() {
+		footer.WriteString(centerPad(line))
+		footer.WriteString(line)
+		footer.WriteByte('\n')
 	}
-	footer.WriteString(centerPad(infoText))
-	footer.WriteString(infoStyle.Render(infoText))
-	footer.WriteByte('\n')
 
-	// line 2: action hints
-	var hintText string
-	if m.level == 0 {
-		hintText = "[c]create  [r]rename  [d]drop"
-	} else if m.searchQuery != "" {
-		hintText = "[/]search  [p]put  [x]delete  [q]back"
-	} else {
-		hintText = "[/]search  [p]put  [x]delete"
-	}
-	footer.WriteString(centerPad(hintText))
-	footer.WriteString(infoStyle.Render(hintText))
-	footer.WriteByte('\n')
-
-	// action error message (auto-expires)
+	// internal: action error message (auto-expires)
 	if m.actionErr != "" && time.Now().Before(m.errUntil) {
 		errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("203"))
 		footer.WriteString(centerPad(m.actionErr))
@@ -730,7 +752,7 @@ func (m model) View() tea.View {
 		footer.WriteByte('\n')
 	}
 
-	// inline prompt (left-aligned to table)
+	// internal: inline prompt (left-aligned to table)
 	if m.prompt != promptNone {
 		footer.WriteByte('\n')
 		if leftPad > 0 {

@@ -1034,6 +1034,27 @@ func interactiveMode(c *cli.Context) error {
 				return true, nil
 			},
 			ReloadBuckets: buildBuckets,
+			Footer: func(info table.FooterInfo) []string {
+				infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("250")).Render
+				if info.Level == 0 {
+					return []string{
+						infoStyle(fmt.Sprintf("Rows %d-%d / %d",
+							info.StartRow+1, info.EndRow, info.FilteredRows)),
+						infoStyle("[c]create  [r]rename  [d]drop"),
+					}
+				}
+				if info.SearchQuery != "" {
+					return []string{
+						infoStyle(fmt.Sprintf("Search: \"%s\"  %d/%d results", info.SearchQuery, info.FilteredRows, info.TotalRows)),
+						infoStyle("[/]search  [p]put  [x]delete"),
+					}
+				}
+				return []string{
+					infoStyle(fmt.Sprintf("Rows %d-%d / %d",
+						info.StartRow+1, info.EndRow, info.FilteredRows)),
+					infoStyle("[/]search  [p]put  [x]delete"),
+				}
+			},
 		},
 	)
 
