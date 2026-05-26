@@ -319,6 +319,25 @@ func (m *model) startPrompt(state promptState, placeholder string) {
 	m.prompt = state
 	m.promptInput = ti
 	m.promptBuf = ""
+	m.applyPromptStyles()
+}
+
+// applyPromptStyles sets the textinput placeholder color based on prompt danger level.
+func (m *model) applyPromptStyles() {
+	s := m.promptInput.Styles()
+
+	isDanger := m.prompt == promptDropBucket || m.prompt == promptDeleteKV || m.prompt == promptPutConfirm
+	if isDanger {
+		warnColor := lipgloss.Color("#ed8796") // Catppuccin Macchiato red
+		s.Focused.Placeholder = lipgloss.NewStyle().Foreground(warnColor)
+		s.Blurred.Placeholder = lipgloss.NewStyle().Foreground(warnColor)
+	} else {
+		// reset to default placeholder color
+		s.Focused.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+		s.Blurred.Placeholder = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	}
+
+	m.promptInput.SetStyles(s)
 }
 
 // handlePromptKey processes keypresses when in prompt mode.
@@ -408,6 +427,7 @@ func (m *model) handlePromptSubmit(val string) (tea.Model, tea.Cmd) {
 				m.promptInput.SetValue("")
 				m.promptInput.Placeholder = "Key exists. Overwrite? (y/n):"
 				m.prompt = promptPutConfirm
+				m.applyPromptStyles()
 				return m, nil
 			}
 		}
@@ -421,6 +441,7 @@ func (m *model) handlePromptSubmit(val string) (tea.Model, tea.Cmd) {
 			m.promptInput.SetValue("")
 			m.promptInput.Placeholder = "Value:"
 			m.prompt = promptPutValue
+			m.applyPromptStyles()
 			return m, nil
 		}
 		m.prompt = promptNone
