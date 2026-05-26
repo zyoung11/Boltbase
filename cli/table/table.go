@@ -684,10 +684,14 @@ func (m model) View() tea.View {
 			return ""
 		}
 		w := lipgloss.Width(s)
-		if w >= tableWidth {
+		ref := tableWidth
+		if w > ref && m.width > 0 {
+			ref = m.width // wider than table, center in terminal instead
+		}
+		if w >= ref {
 			return strings.Repeat(" ", leftPad)
 		}
-		return strings.Repeat(" ", leftPad+(tableWidth-w)/2)
+		return strings.Repeat(" ", leftPad+(ref-w)/2)
 	}
 
 	// line 1: row/col info
