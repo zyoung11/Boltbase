@@ -186,6 +186,10 @@ func main() {
 
 		},
 		Before: func(c *cli.Context) error {
+			// Skip DB init when showing help (no args, no interactive flag)
+			if c.NArg() == 0 && !c.Bool("interactive") {
+				return nil
+			}
 			db, err := bolt.OpenDB(c.String("db"))
 			if err != nil {
 				return err
@@ -198,6 +202,9 @@ func main() {
 			return nil
 		},
 		Action: func(c *cli.Context) error {
+			if c.NArg() == 0 && !c.Bool("interactive") {
+				return cli.ShowAppHelp(c)
+			}
 			return interactiveMode(c)
 		},
 		After: func(c *cli.Context) error {
